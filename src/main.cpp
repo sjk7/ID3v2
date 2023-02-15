@@ -109,7 +109,7 @@ static inline int verifyTag(TagHeaderEx& h) {
     if (f.test(7)) h.hasUnsynchronisation = true;
     if (f.test(6)) h.hasExtendedHeader = true;
     if (f.test(5)) h.hasExperimental = true;
-    f << 3;
+    f = f << 3;
     if (!f.none()) return -3; // flags that are reserved are set.
     return 0;
 }
@@ -125,7 +125,8 @@ static inline TagHeaderEx parseTag(IDataReader& dr) {
 
 using namespace std;
 int tdd_file();
-int main(int argc, char** argv) {
+int main(int, char** argv) {
 
+    cout << "Project running in: " << argv[0] << endl;
     return 0;
 }

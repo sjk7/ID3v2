@@ -9,10 +9,10 @@ int tdd_file() {
         try {
             std::fstream f;
             utils::file_open(f, "", std::ios::binary | std::ios::in, true);
-        } catch (const std::system_error& e) {
+        } catch (const std::system_error&) {
             // std::cout << e.what() << "|" << e.code() << endl;
             // fall through
-        } catch (const std::exception& ex) {
+        } catch (const std::exception&) {
             cerr << "Failed test: was expecting an error opening a file with "
                     "no path"
                  << endl;
@@ -23,10 +23,10 @@ int tdd_file() {
         std::fstream f;
         try {
             utils::file_open(f, ".");
-        } catch (const std::system_error& e) {
+        } catch (const std::system_error&) {
             // std::cerr << e.what() << " | " << e.code() << endl;
 
-        } catch (const std::exception& ex) {
+        } catch (const std::exception&) {
             cerr << "Failed test: was expecting an error opening a file with "
                     "no path"
                  << endl;
@@ -37,17 +37,17 @@ int tdd_file() {
     }
     {
 #ifdef _WIN32
-#error "find an read-protected file for me"
+        const auto filepath = "C:\\windows\\system32\\myunreadable.txt";
 #else
         const auto filepath = "/private/var/protected/xprotect/XPdb";
 #endif
         std::fstream f;
         try {
             utils::file_open(f, filepath);
-        } catch (const std::system_error& e) {
+        } catch (const std::system_error&) {
             // std::cout << e.what() << " | " << e.code() << endl;
 
-        } catch (const std::exception& ex) {
+        } catch (const std::exception&) {
             cerr << "Failed test: was expecting an error opening a file with "
                     "no path"
                  << endl;
@@ -72,19 +72,17 @@ int tdd_file() {
     {
         std::fstream f;
         try {
-            std::string testFilePath = "testfile.txt";
-            if (fs::exists(testFilePath)) {
+            std::string testFilePath
+                = utils::find_file_up("testfile.txt", "ID3v2");
+            if (testFilePath.empty()) {
+#ifdef _MSC_VER
+#pragma warning(disable : 4130)
+#endif
+                assert("testfile.txt is not present in the working directory "
+                       "or any of the local directories above"
+                    == 0);
+            }
 
-            } else {
-                testFilePath = "../testfile.txt";
-            }
-            if (!fs::exists(testFilePath)) {
-                std::cerr
-                    << "This test REQUIRES a file called testfile.txt either"
-                       "in the executable folder or one up"
-                    << std::endl;
-                return -77;
-            }
             utils::file_open(f, testFilePath);
 
             assert(f.is_open());
@@ -100,13 +98,12 @@ int tdd_file() {
             const auto sz = file_get_size(f, ok);
             if (!ok) return -2;
             assert(ok);
-            assert(read1 + read2 == sz);
-            if (read1 + read2 != sz) return -3;
+            assert(read1 + read2 == (std::ptrdiff_t)sz);
+            if (read1 + read2 != (std::ptrdiff_t)sz) return -3;
             if (!f.eof()) return -4;
             assert(f.eof());
             auto pos = 0;
-            auto where_to
-                = file_seek(pos, f, testFilePath, ok, std::ios_base::beg);
+            auto where_to = file_seek(pos, f, ok, std::ios_base::beg);
             assert(where_to == 0);
             if (where_to != 0) return -5;
             assert(ok);
@@ -124,7 +121,7 @@ int tdd_file() {
     return 0;
 }
 
-int main(int argc, char** argv) {
+int main(int, char** argv) {
     std::cout << "Tddfile running in " << argv[0] << endl;
     return tdd_file();
 }

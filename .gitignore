@@ -1,6 +1,12 @@
 # Prerequisites
 *.d
 
+build/*
+out/*
+*.VC.db
+*.ipch
+.vs/*
+
 # Compiled Object files
 *.slo
 *.lo

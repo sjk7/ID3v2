@@ -13,6 +13,8 @@
 #include <random>
 #include <cassert>
 #include <filesystem>
+#include <direct.h> // getcwd
+// #include "mySystemError.hpp"
 
 namespace fs = std::filesystem;
 namespace utils {
@@ -26,7 +28,8 @@ namespace strings {
         static std::random_device random_device;
         static std::mt19937 generator(random_device());
 
-        std::uniform_int_distribution<> distribution(0, CHARACTERS.size() - 1);
+        std::uniform_int_distribution<> distribution(
+            0, (int)(CHARACTERS.size() - 1));
 
         std::string random_string;
 
@@ -321,7 +324,7 @@ namespace strings {
         f.seekg(orig_pos, std::ios::beg);
         try {
             f.setstate(state);
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             puts("meh");
         }
 
@@ -360,8 +363,7 @@ static inline int file_check_error_bits(const std::fstream& f) {
     return stop;
 }
 
-static inline auto file_seek(std::ios::pos_type pos, std::fstream& f,
-    std::string_view filePath, bool& ok,
+static inline auto file_seek(std::ios::pos_type pos, std::fstream& f, bool& ok,
     std::ios::seekdir seekTo = std::ios::beg) {
 
     ok = false;
@@ -381,7 +383,7 @@ static inline auto file_seek(std::ios::pos_type pos, std::fstream& f,
         ok = true;
         return f.tellg();
 
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
 
         return (std::ios::pos_type)-1;
     }
@@ -393,7 +395,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
     const size_t nBytes, const fs::path filePath) {
     const auto& filename = f.rdstate() == std::ios::goodbit
         ? filePath
-        : throw std::system_error(EBADF, std::system_category(),
+        : throw std::system_error(EBADF, std::generic_category(),
             filePath.u8string() + " File is not open.");
 
     auto file_status = std::filesystem::status(filePath);
@@ -414,7 +416,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
                 filename.u8string(), std::string{" is not open"});
             myfail = true;
             throw std::system_error(
-                EBADF, std::system_category(), "File is not open");
+                EBADF, std::generic_category(), "File is not open");
         }
         f.read(dest.data(), nBytes);
 
@@ -431,11 +433,11 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
             std::string serr;
             strings::cat(serr, std::string{"File, with path:\n"},
                 filePath.u8string(), std::string{" at end of file."});
-            throw std::system_error(-1, std::system_category(), "eof");
+            throw std::system_error(-1, std::generic_category(), "eof");
         }
 
         // std::cerr << "Errno is: " << errno << std::endl;
-        auto ex = std::system_error(EBADF, std::system_category(),
+        auto ex = std::system_error(EBADF, std::generic_category(),
             std::string("failed to read from ") + filePath.u8string());
         throw ex;
     }
@@ -456,47 +458,68 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
     return nBytes;
 }
 
+// find a file in local path or in a parent dir, and stop on stop_folder
+[[maybe_unused]] static inline std::string find_file_up(
+    const std::string& file_to_find, const std::string& stop_folder) {
+    char buf[512] = {0};
+    char* cwd = 0;
+#ifdef _WIN32
+    cwd = _getcwd(buf, 512);
+#else
+    cwd = getcwd(buf, 512);
+#endif
+    fs::path appwd = buf;
+    fs::path this_dir = appwd;
+    int found = 0;
+    fs::path finding_file = file_to_find;
+    static constexpr int MAX_TRIES = 1000;
+    int tries = 0;
+
+    while (tries++ < MAX_TRIES) {
+        if (fs::exists(finding_file)) {
+            found = 1;
+            break;
+        }
+        if (this_dir.filename() == stop_folder) {
+            break;
+        }
+        this_dir = this_dir.parent_path();
+        if (this_dir == this_dir.parent_path()) {
+            break; //  no more parents
+        }
+        finding_file = this_dir / file_to_find;
+    };
+
+    if (found) return finding_file.u8string();
+    return std::string();
+}
+
 [[maybe_unused]] static inline std::system_error file_open(std::fstream& f,
-    std::string_view file_path, int mode = std::ios::in | std::ios::binary,
+    const std::string& file_path, int mode = std::ios::in | std::ios::binary,
     bool throw_on_fail = true) {
-    if (file_path.empty()) {
-        auto err = std::system_error(EINVAL, std::system_category(),
-            std::string("file_open needs a file to open!"));
-        if (throw_on_fail) throw err;
-        return err;
-    }
+
     fs::path p = file_path;
     if (fs::is_directory(p)) {
-        if (throw_on_fail) {
-            throw std::system_error(EISDIR, std::system_category(),
-                std::string(
-                    "file open expects a FILEpath, not a DIRECTORY path!\n")
-                    + std::string("You asked for: '") + std::string(file_path)
-                    + std::string(file_path.data(), file_path.size())
-                    + std::string("'"));
-        } else {
-            return std::system_error(0, std::system_category());
-        }
+        errno = EISDIR;
+        auto myse = std::system_error(
+            errno, std::generic_category(), std::string(file_path));
+        if (throw_on_fail) throw myse;
+        return myse;
     }
-    f.clear();
-#ifdef _WIN32
-#pragma message(                                                               \
-    "This needs checking it returns a meaningful error code in 'doze'")
-#endif
-    auto ec = std::system_error(0, std::system_category());
-    try {
-        f.exceptions(std::ios::failbit | std::ios::badbit);
-        f.open(file_path.data(), mode);
-        f.exceptions(std::ios::failbit | std::ios::badbit);
-    } catch (std::exception& e) {
-        auto ex = std::system_error(errno, std::system_category(),
-            std::string("failed to open ") + file_path.data());
-        ec = ex;
-        if (throw_on_fail) throw ex;
-    }
-    assert(f);
 
-    return ec;
+    try {
+        f.clear();
+        f.exceptions(std::ios::failbit | std::ios::badbit);
+        f.open(file_path, mode);
+    } catch (const std::exception&) {
+        auto myse = std::system_error(
+            errno, std::generic_category(), std::string(file_path));
+        if (throw_on_fail) throw myse;
+        return myse;
+    }
+
+    assert(f);
+    return std::system_error(0, std::system_category());
 }
 
 [[maybe_unused]] static inline void file_read_all(
@@ -510,7 +533,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
     if (close_when_done) f.close();
 }
 [[maybe_unused]] static inline std::system_error file_open_and_read_all(
-    std::string_view filepath, std::string& data,
+    const std::string& filepath, std::string& data,
     int flags = std::ios::in | std::ios::binary) {
     std::fstream f;
     auto e = file_open(f, filepath, flags, true);
