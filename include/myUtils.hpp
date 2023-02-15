@@ -13,10 +13,18 @@
 #include <random>
 #include <cassert>
 #include <filesystem>
+#ifdef _WIN32
 #include <direct.h> // getcwd
+#else
+#include <unistd.h> // getcwd
+#endif
 // #include "mySystemError.hpp"
-
+#ifdef __arm__
+namespace fs = std::__fs::filesystem;
+#else
 namespace fs = std::filesystem;
+#endif
+
 namespace utils {
 
 namespace strings {
@@ -42,7 +50,7 @@ namespace strings {
 
     [[maybe_unused]] static inline const char* to_lower_branchless(
         std::string& sv) {
-        char* d = sv.data();
+        char* d = &sv[0];
         for (auto i = 0; i < (int)sv.size(); ++i) {
             unsigned char* c = (unsigned char*)&d[i];
             *c += (*c - 'A' < 26U) << 5; /* lowercase */
@@ -468,7 +476,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
 #else
     cwd = getcwd(buf, 512);
 #endif
-    fs::path appwd = buf;
+    fs::path appwd = cwd;
     fs::path this_dir = appwd;
     int found = 0;
     fs::path finding_file = file_to_find;

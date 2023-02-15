@@ -31,7 +31,7 @@ namespace os {
 
         return message;
     }
-
+    
 #else
 static inline int SysErrorCode() {
     return errno;
