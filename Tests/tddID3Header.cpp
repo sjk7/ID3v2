@@ -6,7 +6,7 @@ using std::cout;
 using std::endl;
 
 int test_id3v2_headers() {
-    ID3v2::TagHeaderEx th;
+    ID3v2::TagHeaderEx th{};
     int verif = ID3v2::verifyTag(th);
     if (verif != -1) {
         cerr << "No. Expected -1 from verif" << endl;
@@ -23,7 +23,7 @@ int test_id3v2_headers() {
     memcpy(th.ID, "ID3", 3);
     verif = ID3v2::verifyTag(th);
     if (verif != -4) {
-        cerr << "No. Expected -4 from verif" << endl;
+        cerr << "No. Expected -4 from verifytag" << endl;
         return -1;
     }
 

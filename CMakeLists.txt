@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 set(CMAKE_CXX_STANDARD 17)
-#set(CMAKE_CXX_STANDARD_REQUIRED ON)
-#set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(include)
 
@@ -15,13 +15,15 @@ endif()
 enable_testing()
 
 
-# Edit and Continue in VS
-if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.15")
-  target_compile_options(ID3Tags PUBLIC "/ZI")
-  target_link_options(ID3Tags PUBLIC "/INCREMENTAL")
-endif()
+
 
 add_executable(ID3HeaderApp src/main.cpp include/myUtils.hpp include/ID3v2.hpp include/FileDataReader.hpp include/IDataReader.hpp)
+
+# Edit and Continue in VS
+if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.15")
+  target_compile_options(ID3HeaderApp PUBLIC "/ZI")
+  target_link_options(ID3HeaderApp PUBLIC "/INCREMENTAL")
+endif()
 
 install(TARGETS ID3HeaderApp
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
