@@ -41,12 +41,12 @@ add_custom_command(
      COMMAND ${UNIT_TEST}
 )
 
-set(UNIT_TEST2 tddFileReader)
+set(UNIT_TEST tddFileReader)
 add_custom_command(
-     TARGET ${UNIT_TEST2}
+     TARGET ${UNIT_TEST}
      COMMENT "Run tests"
      POST_BUILD 
-     COMMAND ${UNIT_TEST2}
+     COMMAND ${UNIT_TEST}
 )
 
 # Edit and Continue in VS
