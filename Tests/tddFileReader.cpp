@@ -14,84 +14,6 @@
 
 using namespace utils;
 
-namespace ID3v2 {
-
-using uchar = unsigned char;
-template <size_t SZ> using bytearray = std::array<uchar, SZ>;
-
-template <typename T> void swapEndian(T& val) {
-    union U {
-        T val;
-        std::array<std::uint8_t, sizeof(T)> raw;
-    } src, dst;
-
-    src.val = val;
-    std::reverse_copy(src.raw.begin(), src.raw.end(), dst.raw.begin());
-    val = dst.val;
-}
-
-template <> void swapEndian<std::uint32_t>(std::uint32_t& value) {
-    std::uint32_t tmp = ((value << 8) & 0xFF00FF00) | ((value >> 8) & 0xFF00FF);
-    value = (tmp << 16) | (tmp >> 16);
-}
-static inline void openFile(const std::string& path, std::fstream& f) {}
-#pragma pack(push, 1)
-// clang-format off
-struct TagHeader {
-    char ID[3];             // ID3v2/file identifier   "ID3"
-    uchar version[2];       // ID3v2 version           $03 00
-    uchar flags;            // ID3v2 flags             %abc00000
-    uint32_t sizeIndicator; // ID3v2 size              4* %0xxxxxxx
-};
-static constexpr inline auto TAG_HEADER_SIZE = sizeof(TagHeader);
-
-struct TagExtendedHeader{
-    uint32_t sizeBytesIndicator;    // $xx xx xx xx
-    unsigned char flags[2];         // $xx xx
-    uint32_t paddingSizeIndicator;  // $xx xx xx xx
-};
-static constexpr inline auto EXT_TAG_HEADER_SIZE = sizeof(TagExtendedHeader);
-
-struct FrameHeader{
-    // A tag must contain at least one frame.
-    // A frame must be at least 1 byte big, excluding the header.
-    char frameID;           // $xx xx xx xx (four characters)
-    uint32_t sizeIndicator; // $xx xx xx xx
-    std::byte Flags[2];     // $xx xx
-};
-// clang-format on
-
-#pragma pack(pop)
-
-struct TagHeaderEx : TagHeader {
-    int validity = 0;
-    bool hasUnsynchronisation = false;
-    bool hasExtendedHeader = false;
-    bool hasExperimental = true;
-};
-
-static inline int verifyTag(TagHeaderEx& h) {
-    std::string_view sv(h.ID, 3);
-    if (h.version[0] != 3) return -1;
-    if (sv != "ID3") return -2;
-    std::bitset<8> f(h.flags);
-    if (f.test(7)) h.hasUnsynchronisation = true;
-    if (f.test(6)) h.hasExtendedHeader = true;
-    if (f.test(5)) h.hasExperimental = true;
-    f = f << 3;
-    if (!f.none()) return -3; // flags that are reserved are set.
-    return 0;
-}
-static inline TagHeaderEx parseTag(my::IDataReader& dr) {
-    TagHeaderEx ret = {0};
-    const auto data = dr.read(10);
-    memcpy(&ret, data.data(), TAG_HEADER_SIZE);
-    ret.validity = verifyTag(ret);
-    return ret;
-}
-
-} // namespace ID3v2
-
 using namespace std;
 using namespace my;
 int tdd_file();
@@ -101,7 +23,7 @@ int test_file_reader() {
     assert(!filepath.empty());
     try {
         FileDataReader reader(filepath);
-        cout << reader.getSize();
+        // cout << reader.getSize();
         if (reader.getSize() != 27) {
             std::cerr << "Unexpected. File size is 27" << endl;
         }
