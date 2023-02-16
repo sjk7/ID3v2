@@ -3,16 +3,22 @@
 using namespace std;
 using namespace utils;
 
-int tdd_file() {
+int tdd_file()
+{
     {
         // try a bad file path
-        try {
+        try
+        {
             std::fstream f;
             utils::file_open(f, "", std::ios::binary | std::ios::in, true);
-        } catch (const std::system_error&) {
+        }
+        catch (const std::system_error &)
+        {
             // std::cout << e.what() << "|" << e.code() << endl;
             // fall through
-        } catch (const std::exception&) {
+        }
+        catch (const std::exception &)
+        {
             cerr << "Failed test: was expecting an error opening a file with "
                     "no path"
                  << endl;
@@ -21,12 +27,16 @@ int tdd_file() {
 
         // try opening a DIRECTORY
         std::fstream f;
-        try {
+        try
+        {
             utils::file_open(f, ".");
-        } catch (const std::system_error&) {
+        }
+        catch (const std::system_error &)
+        {
             // std::cerr << e.what() << " | " << e.code() << endl;
-
-        } catch (const std::exception&) {
+        }
+        catch (const std::exception &)
+        {
             cerr << "Failed test: was expecting an error opening a file with "
                     "no path"
                  << endl;
@@ -42,12 +52,16 @@ int tdd_file() {
         const auto filepath = "/private/var/protected/xprotect/XPdb";
 #endif
         std::fstream f;
-        try {
+        try
+        {
             utils::file_open(f, filepath);
-        } catch (const std::system_error&) {
+        }
+        catch (const std::system_error &)
+        {
             // std::cout << e.what() << " | " << e.code() << endl;
-
-        } catch (const std::exception&) {
+        }
+        catch (const std::exception &)
+        {
             cerr << "Failed test: was expecting an error opening a file with "
                     "no path"
                  << endl;
@@ -55,15 +69,20 @@ int tdd_file() {
         }
 
         // read from a known bad file
-        try {
+        try
+        {
             assert(!f);
             std::string s;
             auto nRead = file_read_some(s, f, 10, ".");
             assert(nRead == 0);
-        } catch (const std::exception& e) {
+            (void)nRead;
+        }
+        catch (const std::exception &e)
+        {
             std::string s = e.what();
             // std::cerr << e.what() << endl;
-            if (s.find("is not open") == std::string::npos) {
+            if (s.find("is not open") == std::string::npos)
+            {
                 return -1;
             }
         }
@@ -71,16 +90,16 @@ int tdd_file() {
 
     {
         std::fstream f;
-        try {
-            std::string testFilePath
-                = utils::find_file_up("testfile.txt", "ID3v2");
-            if (testFilePath.empty()) {
+        try
+        {
+            std::string testFilePath = utils::find_file_up("testfile.txt", "ID3v2");
+            if (testFilePath.empty())
+            {
 #ifdef _MSC_VER
 #pragma warning(disable : 4130)
 #endif
                 assert("testfile.txt is not present in the working directory "
-                       "or any of the local directories above"
-                    == 0);
+                       "or any of the local directories above" == 0);
             }
 
             utils::file_open(f, testFilePath);
@@ -96,22 +115,29 @@ int tdd_file() {
             assert(read2 == 17);
             bool ok = false;
             const auto sz = file_get_size(f, ok);
-            if (!ok) return -2;
+            if (!ok)
+                return -2;
             assert(ok);
             assert(read1 + read2 == (std::ptrdiff_t)sz);
-            if (read1 + read2 != (std::ptrdiff_t)sz) return -3;
-            if (!f.eof()) return -4;
+            if (read1 + read2 != (std::ptrdiff_t)sz)
+                return -3;
+            if (!f.eof())
+                return -4;
             assert(f.eof());
             auto pos = 0;
             auto where_to = file_seek(pos, f, ok, std::ios_base::beg);
             assert(where_to == 0);
-            if (where_to != 0) return -5;
+            if (where_to != 0)
+                return -5;
             assert(ok);
-            if (!ok) return -6;
+            if (!ok)
+                return -6;
             assert(f);
-            if (!f) return -7;
-
-        } catch (const std::exception& e) {
+            if (!f)
+                return -7;
+        }
+        catch (const std::exception &e)
+        {
             cerr << "Bad news, an expected operation failed with: " << endl;
             cerr << e.what();
             return -1;
@@ -121,14 +147,17 @@ int tdd_file() {
     return 0;
 }
 
-int test_reader(){
-    return 0; 
+int test_reader()
+{
+    return 0;
 }
 
-int main(int, char** argv) {
+int main(int, char **argv)
+{
     std::cout << "Tddfile running in " << argv[0] << endl;
     int ret = tdd_file();
-    if (ret) return ret;
+    if (ret)
+        return ret;
     ret = test_reader();
     return ret;
 }

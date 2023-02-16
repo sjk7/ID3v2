@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -35,9 +36,12 @@ add_executable(tddFileReader Tests/tddFileReader.cpp include/FileDataReader.hpp
 add_executable(ID3HeaderTest Tests/tddID3Header.cpp include/myUtils.hpp include/ID3v2.hpp
 include/FileDataReader.hpp include/IDataReader.hpp)
 
+add_executable(ReadValidTagHeader Tests/tddReadValidTagHeader.cpp include/ID3v2.hpp)
+
 add_test(NAME TestFile COMMAND tddfile)
 add_test(NAME FileReader COMMAND tddFileReader)
 add_test(NAME TestHeaders COMMAND ID3HeaderTest)
+add_test(NAME ValidHeaderTag COMMAND ReadValidTagHeader)
 
 set(UNIT_TEST tddfile)
 add_custom_command(
@@ -56,6 +60,13 @@ add_custom_command(
 )
 
 set(UNIT_TEST ID3HeaderTest)
+add_custom_command(
+     TARGET ${UNIT_TEST}
+     COMMENT "Run tests"
+     POST_BUILD 
+     COMMAND ${UNIT_TEST}
+)
+set(UNIT_TEST ReadValidTagHeader)
 add_custom_command(
      TARGET ${UNIT_TEST}
      COMMENT "Run tests"

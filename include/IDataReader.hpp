@@ -14,5 +14,6 @@ struct IDataReader {
     virtual std::string_view read(size_t&& bytes) = 0;
     virtual size_t readInto(std::string&, const size_t nBytes) = 0;
     virtual const std::string& data() const noexcept = 0;
+    virtual size_t readInto(char* dest, size_t nBytes)  noexcept = 0;
 };
 } // namespace my

@@ -80,6 +80,16 @@
         "utility": "cpp",
         "stop_token": "cpp",
         "thread": "cpp",
-        "__verbose_abort": "cpp"
+        "__verbose_abort": "cpp",
+        "__tree": "cpp",
+        "charconv": "cpp",
+        "cinttypes": "cpp",
+        "csignal": "cpp",
+        "future": "cpp",
+        "map": "cpp",
+        "regex": "cpp",
+        "set": "cpp",
+        "span": "cpp",
+        "unordered_set": "cpp"
     }
 }

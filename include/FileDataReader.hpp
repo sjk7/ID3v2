@@ -52,6 +52,19 @@ struct FileDataReader : IDataReader {
         }
     }
 
+    virtual size_t readInto(char* dest, size_t nBytes) noexcept override {
+        try{
+            m_f.read(dest, nBytes);
+            m_pos += nBytes;
+        }catch(const std::exception& e){
+            std::cerr << e.what() << std::endl;
+            m_pos += m_f.gcount();
+            return m_f.gcount();
+        }
+        return m_f.gcount();
+
+    }
+
     virtual const std::string& data() const noexcept override { return m_buf; }
 
     // throws system_error on failure, hopefully with a meaningful message.
@@ -63,6 +76,7 @@ struct FileDataReader : IDataReader {
         m_f.clear();
     }
 
+    
     private:
     mutable std::fstream m_f;
     std::string m_buf;
