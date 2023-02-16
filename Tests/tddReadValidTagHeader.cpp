@@ -12,15 +12,27 @@ using std::cout;
 using std::endl;
 
 int read_valid_header() {
+    using std::cerr;
+    using std::endl;
+
     const auto fileName = utils::find_file_up("sample.mp3", "ID3");
     assert(!fileName.empty());
     cout << "Mp3 file located at: " << fileName << endl;
     my::FileDataReader fdr(fileName);
     auto tag = ID3v2::parseHeader(fdr);
-    assert(tag.validity == ID3v2::OK);
-    assert(tag.dataSizeInBytes == 348);
-    assert(tag.totalSizeInBytes()
-        == tag.dataSizeInBytes + sizeof(ID3v2::TagHeader));
+    if (tag.validity != ID3v2::verifyTagResult::OK) {
+        cerr << "No. Expected a valid tag here" << endl;
+        return -90;
+    }
+    if (tag.dataSizeInBytes != 348) {
+        cerr << "No. Expected a valid tag here, with size == 348" << endl;
+        return -91;
+    }
+    if (tag.totalSizeInBytes()
+        != tag.dataSizeInBytes + sizeof(ID3v2::TagHeader)) {
+        cerr << "No. Tag sizes not sane." << endl;
+        return -92;
+    }
 
     return 0;
 }

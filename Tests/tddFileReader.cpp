@@ -88,9 +88,9 @@ int test_file_reader() {
         if (!thrown) {
             cerr << "Nope, it should have thrown with a crazy seek";
         }
-        bool ok = false;
-        auto newpos = reader.seek(0, ok);
-        if (!ok) {
+
+        auto newpos = reader.seek(0);
+        if (newpos != 0) {
             cerr << "unexpected: seek to 0 should work";
             return -1;
         }
@@ -105,24 +105,37 @@ int test_file_reader() {
         }
 
         // seeking off the end behaviour
-        auto seeked = reader.seek(10000, ok);
-        if (!ok) {
+        auto seeked = reader.seek(10000);
+        if (seeked != 10000) {
             cerr << "As mad as it is, seeking beyond the end of a file is ok!";
             return -1;
         }
-        assert(seeked == 10000);
 
         // check seeking backwards from the end
-        seeked = reader.seek(0, ok, std::ios_base::end);
-        assert(seeked == 27);
-        seeked = reader.seek(-2, ok, std::ios_base::end);
-        assert(seeked = 25);
+        seeked = reader.seek(0, std::ios_base::end);
+        if (seeked == reader.getSize()) {
+            cerr << "As mad as it is, seeking beyond the end of a file is ok!";
+            return -1;
+        }
+        seeked = reader.seek(-2, std::ios_base::end);
+        if (seeked != reader.getSize() - 2) {
+            cerr << "Incorrect seek value returned";
+            return -1;
+        }
         auto two = reader.read(2);
-        assert(two.size() == 2);
+        if (two.size() != 2) {
+            cerr << "Expected two.";
+            return -1;
+        }
+
 
         std::string sbak;
         auto got = reader.readInto(sbak, 10);
-        assert(got == 0); // coz eof, and no exception here
+        if (got != 0) {
+            cerr << "read should get nothing since eof() is expected.";
+            return -1;
+        }
+
     } catch (const std::exception& e) {
         cerr << "UNEXPECTED failure opening file" << e.what() << endl;
         return -1;

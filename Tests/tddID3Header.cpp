@@ -4,6 +4,7 @@
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java:
 // http://www.viva64.com
 
+#define UNIT_TESTING 77
 #include "../include/ID3v2.hpp"
 #include <iostream>
 
@@ -11,25 +12,25 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
-int test_id3v2_headers() {
+int test_invalid_id3v2_headers() {
     ID3v2::TagHeaderEx th{};
-    int verif = ID3v2::verifyTag(th);
-    if (verif != -1) {
-        cerr << "No. Expected -1 from verif" << endl;
+    auto verif = ID3v2::verifyTag(th);
+    if (verif != ID3v2::verifyTagResult::BadVersion) {
+        cerr << "No. Expected invalid from verif" << endl;
         return -1;
     }
 
     th.version[0] = 3;
     verif = ID3v2::verifyTag(th);
-    if (verif != -2) {
-        cerr << "No. Expected -2 from verif" << endl;
+    if (verif != ID3v2::verifyTagResult::BadID) {
+        cerr << "No. Expected BadID from verif" << endl;
         return -1;
     }
 
     memcpy(th.ID, "ID3", 3);
     verif = ID3v2::verifyTag(th);
-    if (verif != -4) {
-        cerr << "No. Expected -4 from verifytag" << endl;
+    if (verif != ID3v2::verifyTagResult::BadSizeIndicator) {
+        cerr << "No. Expected BadSizeIndicator from verifytag" << endl;
         return -1;
     }
 
@@ -39,17 +40,17 @@ int test_id3v2_headers() {
         return -1;
     }
     my::FileDataReader myReader(fn);
-    ID3v2::TagHeaderEx h = ID3v2::parseHeader(myReader);
-    if (h.validity == ID3v2::OK) {
+    ID3v2::TagHeaderEx h = ID3v2::parseHeader(myReader, false);
+    if (h.validity == ID3v2::verifyTagResult::OK) {
         cerr << "No way should this tag be valid!" << endl;
         return -1;
     }
-    assert(h.validity != ID3v2::OK);
+    // assert(h.validity != ID3v2::OK);
 
     return 0;
 }
 
 int main() {
-    int ret = test_id3v2_headers();
+    int ret = test_invalid_id3v2_headers();
     return ret;
 }

@@ -20,8 +20,8 @@ struct ID3v2Skipper {
         m_info.tag = ID3v2::parseHeader(m_dr);
         const auto fsize = m_dr.getSize();
         m_info.getMpegSize(fsize);
-        bool ok = false;
-        m_dr.seek(m_info.tag.totalSizeInBytes(), ok);
+        auto seeked = m_dr.seek(m_info.tag.totalSizeInBytes());
+        assert(seeked = m_info.tag.totalSizeInBytes());
         f(m_dr, m_info);
     }
 
@@ -32,45 +32,30 @@ struct ID3v2Skipper {
 };
 
 int main() {
-    std::string s("\tAmple\topportunity\t\t\for\tfuckups\t\t");
-    auto tokens = utils::strings::split_string_gpt(s, "\t", true);
-    cout << "nTokens = " << tokens.size() << endl;
-    for (const auto& tk : tokens) {
-        cout << tk << endl;
-    }
-    cout << "-----------------" << endl;
 
-    tokens = utils::strings::split_string_gpt(s, "\t");
-    cout << "nTokens = " << tokens.size() << endl;
-    for (const auto& tk : tokens) {
-        cout << tk << endl;
-    }
-    cout << "-----------------" << endl;
-    std::string sNoTokens = "sdpkjghapiughladikfnpcadisuofynavsidoviu";
-    tokens = utils::strings::split_string_gpt(sNoTokens, "\t");
-    cout << "nTokens = " << tokens.size() << endl;
-    for (const auto& tk : tokens) {
-        cout << tk << endl;
-    }
-    cout << "-----------------" << endl;
-
+    using std::cout;
     const auto filePath = utils::find_file_up("sample.mp3", "ID3");
     assert(!filePath.empty());
 
+    ID3v2::ID3FileInfo myInfo = {0};
+
     ID3v2Skipper skipper(
-        filePath, [](my::FileDataReader& rdr, ID3v2::ID3FileInfo& info) {
+        filePath, [&myInfo](my::FileDataReader& rdr, ID3v2::ID3FileInfo& info) {
             cout << "Header size is:" << info.tag.dataSizeInBytes << endl;
+            myInfo = info;
         });
 
     auto& dr = skipper.m_dr;
+    const auto pos = dr.getPos();
+    cout << "Audio starts at position: " << pos << endl;
+    assert(pos == myInfo.mpegStartPosition);
     std::string mpegData;
-    const auto filesize = dr.getSize();
-    size_t mpegSize = skipper.m_info.mpegSize;
-    bool ok = false;
-    auto seekpos = skipper.m_info.tag.totalSizeInBytes();
-    auto seeked = dr.seek(seekpos, ok);
-    auto got = dr.readInto(mpegData, mpegSize);
-    assert(got == mpegSize);
+    auto got = dr.readInto(mpegData, myInfo.mpegSize);
+    assert(got == myInfo.mpegSize);
+    if (got != myInfo.mpegSize) {
+        cerr << "Trouble reading all of the mpeg data" << endl;
+        return -1;
+    }
     const auto szPrint = std::min(mpegData.size(), size_t(150));
     cout << "Here's some mpeg data (could be padding thou) ... \n\n"
          << mpegData.substr(0, szPrint) << std::endl;

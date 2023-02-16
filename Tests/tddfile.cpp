@@ -108,7 +108,7 @@ int tdd_file() {
             if (!f.eof()) return -4;
             assert(f.eof());
             auto pos = 0;
-            auto where_to = file_seek(pos, f, ok, std::ios_base::beg);
+            auto where_to = file_seek(pos, f, std::ios_base::beg);
             assert(where_to == 0);
             if (where_to != 0) return -5;
             assert(ok);
@@ -122,6 +122,9 @@ int tdd_file() {
         }
     }
 
+    // char buf[2] = {};
+    // volatile const auto wrong = buf[8];
+    // cout << wrong << endl;
     return 0;
 }
 

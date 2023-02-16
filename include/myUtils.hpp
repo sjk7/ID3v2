@@ -35,56 +35,6 @@ namespace utils {
 
 namespace strings {
 
-    struct DelimCheckerImpl {
-        std::string delimiters;
-
-        DelimCheckerImpl(const std::string& delims) : delimiters(delims) {}
-
-        bool operator()(char c) const {
-            return delimiters.find(c) != std::string::npos;
-        }
-    };
-
-    template <typename ReturnType = std::string,
-        typename DelimChecker = DelimCheckerImpl>
-    [[maybe_unused]] std::vector<ReturnType> split_string_gpt(
-        const std::string& str, const std::string& delim = "\t",
-        bool keep_empty = false) {
-
-        DelimChecker checker = DelimCheckerImpl(delim);
-        std::vector<ReturnType> tokens;
-        tokens.reserve(std::count_if(str.begin(), str.end(), checker) + 1);
-
-        auto start = str.begin();
-        while (start != str.end()) {
-            auto end = std::find_if(start, str.end(), checker);
-
-            if (start != end || keep_empty) {
-                auto len = end - start;
-                if (len >= static_cast<ptrdiff_t>(delim.size())
-                    && std::equal(delim.begin(), delim.end(), start)) {
-                    len -= delim.size();
-                    start += delim.size();
-                }
-
-                try {
-                    tokens.emplace_back(str.substr(start - str.begin(), len));
-                } catch (const std::out_of_range&) {
-                    throw std::runtime_error(
-                        "Delimiter is longer than the input string.");
-                }
-            }
-
-            if (end == str.end()) {
-                break;
-            }
-
-            start = end + delim.size();
-        }
-
-        return tokens;
-    }
-
     [[maybe_unused]] static std::string random_string(std::size_t length) {
         static const std::string CHARACTERS
             = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -427,9 +377,8 @@ static inline int file_check_error_bits(const std::fstream& f) {
 }
 
 static inline auto file_seek(const std::ios::pos_type& pos, std::fstream& f,
-    bool& ok, std::ios::seekdir seekTo = std::ios::beg) noexcept {
+    std::ios::seekdir seekTo = std::ios::beg) noexcept {
 
-    ok = false;
     try {
         f.clear();
     } catch (...) {
@@ -443,7 +392,6 @@ static inline auto file_seek(const std::ios::pos_type& pos, std::fstream& f,
         if (!f) {
             return (std::ios::pos_type)-1;
         }
-        ok = true;
         return f.tellg();
     } catch (const std::exception&) {
 

@@ -10,7 +10,6 @@
 #include <bitset>
 
 namespace ID3v2 {
-static constexpr int OK = 0;
 
 using uchar = unsigned char;
 template <size_t SZ> using bytearray = std::array<uchar, SZ>;
@@ -73,12 +72,20 @@ struct ID3v1Tag {
 static_assert(std::is_pod_v<ID3v1Tag>);
 static_assert(sizeof(ID3v1Tag) == 128);
 static constexpr int16_t ID3V1_TAG_SIZE = 128;
-
 #pragma pack(pop)
+
+enum class verifyTagResult {
+    BadBase = -1,
+    OK = 1,
+    BadVersion = BadBase - 1,
+    BadID = BadBase - 2,
+    BadSizeIndicator = BadBase - 3,
+    BadReservedFlags = BadBase - 4
+};
 
 struct TagHeaderEx : TagHeader {
     ID3v1Tag v1Tag = {};
-    int validity = 0;
+    verifyTagResult validity = verifyTagResult::OK;
     bool hasUnsynchronisation = false;
     bool hasExtendedHeader = false;
     bool hasExperimental = true;
@@ -113,43 +120,84 @@ struct ID3FileInfo {
     mutable size_t mpegEndPosition = 0;
 };
 
-static inline int verifyTag(TagHeaderEx& h) {
+static inline verifyTagResult verifyTag(TagHeaderEx& h) {
     std::string_view sv(h.ID, 3);
-    if (h.version[0] != 3) return -1;
-    if (sv != "ID3") return -2;
-    if (h.sizeIndicator == 0) return -4;
+    if (h.version[0] != 3) return verifyTagResult::BadVersion;
+    if (sv != "ID3") return verifyTagResult::BadID;
+    if (h.sizeIndicator == 0) return verifyTagResult::BadSizeIndicator;
     std::bitset<8> f(h.flags);
     if (f.test(7)) h.hasUnsynchronisation = true;
     if (f.test(6)) h.hasExtendedHeader = true;
     if (f.test(5)) h.hasExperimental = true;
     f = f << 3;
-    if (!f.none()) return -3; // flags that are reserved are set.
-    return 0;
+    if (!f.none())
+        return verifyTagResult::BadReservedFlags; // flags that are reserved are
+                                                  // set.
+    return verifyTagResult::OK;
 }
+
 static inline uint32_t decodeSynchSafe(uint32_t size) {
     size = (size & 0x0000007F) | ((size & 0x00007F00) >> 1)
         | ((size & 0x007F0000) >> 2) | ((size & 0x7F000000) >> 3);
     return size;
 }
+
 static inline uint32_t getTagSize(uint32_t sz) {
     swapEndian(sz);
     sz = decodeSynchSafe(sz);
     return sz;
 }
-static inline TagHeaderEx parseHeader(my::IDataReader& dr) {
+
+static inline TagHeaderEx parseHeader(
+    my::IDataReader& dr, bool expect_good = true) {
+
+    using std::cerr;
+    using std::endl;
     TagHeaderEx ret = {0};
     const auto data = dr.read(10);
     if (data.size() == 10) {
         memcpy(&ret, data.data(), TAG_HEADER_SIZE);
         ret.validity = verifyTag(ret);
+        if (!expect_good) {
+            if (ret.validity == ID3v2::verifyTagResult::OK) {
+                cerr << "Expected duff tag here, but it seems to be valid?"
+                     << endl;
+                exit(-1000);
+            }
+            return ret;
+        }
         ret.dataSizeInBytes = getTagSize(ret.sizeIndicator);
     }
-    bool ok = false;
-    auto sk = dr.seek(-ID3V1_TAG_SIZE, ok, std::ios_base::end);
+
+    auto sk = dr.seek(-ID3V1_TAG_SIZE, std::ios_base::end);
+    auto pos = dr.getPos();
+    const auto sz = dr.getSize();
+    if (pos != sz - 128) {
+        cerr << "Nope, file should be at end after reading last 128 bytes"
+             << endl;
+#ifdef UNIT_TESTING
+        exit(-10000);
+#endif
+    }
     const auto v1read = dr.readInto((char*)&ret.v1Tag, ID3V1_TAG_SIZE);
-    ok = false;
-    dr.seek(ID3v2::TAG_HEADER_SIZE, ok);
-    assert(ok);
+    if (dr.getPos() != dr.getSize()) {
+        cerr << "After reading v1 tag, we should be at the end of the file"
+             << endl;
+#ifdef UNIT_TESTING
+        exit(-10000);
+#endif
+        return ret;
+    }
+    sk = dr.seek(ID3v2::TAG_HEADER_SIZE);
+    if (sk != ID3v2::TAG_HEADER_SIZE) {
+        cerr << "Expected seek position to be after the valid header" << endl;
+// assert("Expected seek position to be after the valid header" == 0);
+#ifdef UNIT_TESTING
+        exit(-10000);
+#endif
+        return ret;
+    }
+
     return ret;
 }
 

@@ -12,7 +12,8 @@
 
 namespace my {
 struct FileDataReader : IDataReader {
-    virtual size_t getSize(bool refresh = false) const noexcept override {
+    virtual std::streamsize getSize(
+        bool refresh = false) const noexcept override {
         if (refresh || m_size <= 0) {
             fs::path p = m_filePath;
             std::error_code ec;
@@ -23,7 +24,8 @@ struct FileDataReader : IDataReader {
         }
         return m_size;
     }
-    virtual size_t getPos(bool refresh = false) const noexcept override {
+    virtual std::streampos getPos(
+        bool refresh = false) const noexcept override {
         if (m_pos == 0 || refresh) {
             m_pos = m_f.tellg();
         }
@@ -32,9 +34,9 @@ struct FileDataReader : IDataReader {
 
     // does not throw, you must check you got what you wanted,
     // and is ok.
-    virtual std::streamoff seek(std::streamoff pos, bool& ok,
+    virtual std::streamoff seek(std::streamoff pos,
         std::ios::seekdir dir = std::ios::beg) noexcept override {
-        m_pos = utils::file_seek(pos, m_f, ok, dir);
+        m_pos = utils::file_seek(pos, m_f, dir);
         return m_pos;
     }
 

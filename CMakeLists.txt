@@ -14,10 +14,6 @@ if( CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.15" )
 endif()
 
 enable_testing()
-
-
-
-
 add_executable(ID3HeaderApp src/main.cpp include/myUtils.hpp include/ID3v2.hpp include/FileDataReader.hpp include/IDataReader.hpp)
 
 # Edit and Continue in VS
@@ -33,15 +29,15 @@ add_executable (tddfile Tests/tddfile.cpp include/myUtils.hpp)
 add_executable(tddFileReader Tests/tddFileReader.cpp include/FileDataReader.hpp
     include/IDataReader.hpp)
 
-add_executable(ID3HeaderTest Tests/tddID3Header.cpp include/myUtils.hpp include/ID3v2.hpp
+add_executable(BadID3HeaderTest Tests/tddID3Header.cpp include/myUtils.hpp include/ID3v2.hpp
 include/FileDataReader.hpp include/IDataReader.hpp)
 
 add_executable(ReadValidTagHeader Tests/tddReadValidTagHeader.cpp include/ID3v2.hpp)
 
 add_test(NAME TestFile COMMAND tddfile)
 add_test(NAME FileReader COMMAND tddFileReader)
-add_test(NAME TestHeaders COMMAND ID3HeaderTest)
-add_test(NAME ValidHeaderTag COMMAND ReadValidTagHeader)
+add_test(NAME TestBadHeader COMMAND BadID3HeaderTest)
+add_test(NAME ReadValidHeaderTag COMMAND ReadValidTagHeader)
 
 set(UNIT_TEST tddfile)
 add_custom_command(
@@ -59,7 +55,7 @@ add_custom_command(
      COMMAND ${UNIT_TEST}
 )
 
-set(UNIT_TEST ID3HeaderTest)
+set(UNIT_TEST BadID3HeaderTest)
 add_custom_command(
      TARGET ${UNIT_TEST}
      COMMENT "Run tests"
