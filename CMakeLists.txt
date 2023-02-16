@@ -23,11 +23,11 @@ add_executable(ID3HeaderApp src/main.cpp include/myUtils.hpp include/ID3v2.hpp i
 # Edit and Continue in VS
 if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.15")
   target_compile_options(ID3HeaderApp PUBLIC "/ZI")
-  target_link_options(ID3HeaderApp PUBLIC "/INCREMENTAL")
+   target_link_options(ID3HeaderApp PUBLIC "/INCREMENTAL")
 endif()
 
-install(TARGETS ID3HeaderApp
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+#install(TARGETS ID3HeaderApp
+#    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 add_executable (tddfile Tests/tddfile.cpp include/myUtils.hpp)
 add_executable(tddFileReader Tests/tddFileReader.cpp include/FileDataReader.hpp

@@ -1,5 +1,12 @@
-#pragma once
+// This is an independent project of an individual developer. Dear PVS-Studio,
+// please check it.
+
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java:
+// http://www.viva64.com
+
 // FileDataReader.hpp
+#pragma once
+
 #include "IDataReader.hpp"
 #include "myUtils.hpp"
 
@@ -45,7 +52,7 @@ struct FileDataReader : IDataReader {
         try {
             auto sz = static_cast<size_t>(
                 utils::file_read_some(s, m_f, nBytes, m_filePath));
-            if (sz >= 0) m_pos += sz;
+            m_pos += sz;
             return sz;
         } catch (std::exception&) {
             return 0;
@@ -53,22 +60,21 @@ struct FileDataReader : IDataReader {
     }
 
     virtual size_t readInto(char* dest, size_t nBytes) noexcept override {
-        try{
+        try {
             m_f.read(dest, nBytes);
             m_pos += nBytes;
-        }catch(const std::exception& e){
+        } catch (const std::exception& e) {
             std::cerr << e.what() << std::endl;
             m_pos += m_f.gcount();
             return m_f.gcount();
         }
         return m_f.gcount();
-
     }
 
     virtual const std::string& data() const noexcept override { return m_buf; }
 
     // throws system_error on failure, hopefully with a meaningful message.
-    FileDataReader(const std::string filePath,
+    FileDataReader(const std::string& filePath,
         unsigned int openFlags = std::ios::in | std::ios::binary)
         : m_filePath(filePath) {
         utils::file_open(m_f, filePath, openFlags, true);
@@ -76,7 +82,6 @@ struct FileDataReader : IDataReader {
         m_f.clear();
     }
 
-    
     private:
     mutable std::fstream m_f;
     std::string m_buf;

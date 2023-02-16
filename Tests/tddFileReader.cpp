@@ -1,3 +1,9 @@
+// This is an independent project of an individual developer. Dear PVS-Studio,
+// please check it.
+
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java:
+// http://www.viva64.com
+
 #include "../include/FileDataReader.hpp"
 #include "../include/myUtils.hpp"
 #include <array>
@@ -48,6 +54,10 @@ int test_file_reader() {
         }
 
         auto nowRead = reader.read(5);
+        if (nowRead.size() != 5) {
+            cerr << "Unexpected read result";
+            return -20;
+        }
         if (reader.getPos() != 15) {
             cerr << "reader position, expected 15";
             return -15;
