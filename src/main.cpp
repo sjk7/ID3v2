@@ -28,6 +28,30 @@ struct ID3v2Skipper
 
 int main()
 {
+    std::string s("\tAmple\topportunity\t\t\for\tfuckups\t\t");
+    auto tokens = utils::strings::split_string_gpt(s, "\t", true);
+    cout << "nTokens = " << tokens.size() << endl;
+    for (const auto& tk : tokens){
+        cout << tk << endl;
+    }
+    cout << "-----------------" << endl;
+
+    tokens= utils::strings::split_string_gpt(s, "\t");
+    cout << "nTokens = " << tokens.size() << endl;
+        for (const auto& tk : tokens){
+        cout << tk << endl;
+    }
+ cout << "-----------------" << endl;
+ std::string sNoTokens = "sdpkjghapiughladikfnpcadisuofynavsidoviu";
+ tokens = utils::strings::split_string_gpt(sNoTokens, "\t");
+     cout << "nTokens = " << tokens.size() << endl;
+        for (const auto& tk : tokens){
+        cout << tk << endl;
+    }
+ cout << "-----------------" << endl;
+
+
+
     const auto filePath = utils::find_file_up("sample.mp3", "ID3");
     assert(!filePath.empty());
 
