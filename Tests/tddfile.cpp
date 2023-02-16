@@ -1,5 +1,5 @@
 // tddfile.cpp
-#include "myUtils.hpp"
+#include "../include/myUtils.hpp"
 using namespace std;
 using namespace utils;
 
@@ -121,7 +121,14 @@ int tdd_file() {
     return 0;
 }
 
+int test_reader(){
+    return 0; 
+}
+
 int main(int, char** argv) {
     std::cout << "Tddfile running in " << argv[0] << endl;
-    return tdd_file();
+    int ret = tdd_file();
+    if (ret) return ret;
+    ret = test_reader();
+    return ret;
 }
