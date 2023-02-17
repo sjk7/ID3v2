@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(include)
-
 project(ID3Tags LANGUAGES CXX)
 
 # 'Just My Code' in VS
@@ -26,6 +25,7 @@ endif()
 #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 add_executable (tddfile Tests/tddfile.cpp include/myUtils.hpp)
+
 add_executable(tddFileReader Tests/tddFileReader.cpp include/FileDataReader.hpp
     include/IDataReader.hpp)
 
@@ -79,7 +79,7 @@ endif()
 if(MSVC)
   target_compile_options(tddfile PRIVATE /W4)
 else()
-  target_compile_options(tddfile PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(tddfile PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 
