@@ -8,6 +8,12 @@
 #include "../include/ID3v2.hpp"
 #include <iostream>
 
+#ifdef _MSC_VER
+#pragma warning(                                                               \
+    disable : 4130) // logical operation on address of string constant bullshit.
+                    // (assert("ffs" == nullptr))
+#endif
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -40,7 +46,7 @@ int test_invalid_id3v2_headers() {
         return -1;
     }
     my::FileDataReader myReader(fn);
-    ID3v2::TagHeaderEx h = ID3v2::parseHeader(myReader);
+    ID3v2::TagHeaderEx h = ID3v2::parseHeader(myReader, "Bad Tag in memory");
     if (h.validity == ID3v2::verifyTagResult::OK) {
         cerr << "No way should this tag be valid!" << endl;
         return -1;

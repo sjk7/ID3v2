@@ -6,55 +6,47 @@
 
 // tddfile.cpp
 #define CATCH_CONFIG_MAIN
-#include "../include/catch2.hpp"
+#include "../include/catch2KLJ.hpp"
 #include "../include/myUtils.hpp"
 
 using namespace std;
 using namespace utils;
 
-TEST_CASE("Checking file behaviours")
-{
+TEST_CASE("Checking file behaviours") {
     {
         // try a bad file path
         // REQUIRE(false);
-        try
-        {
+        try {
             std::fstream f;
             utils::file_open(f, "", std::ios::binary | std::ios::in, true);
-        }
-        catch (const std::system_error &e)
-        {
+        } catch (const std::system_error& e) {
             REQUIRE(e.what());
             // std::cout << e.what() << "|" << e.code() << endl;
             // fall through
-        }
-        catch (const std::exception &)
-        {
+        } catch (const std::exception& err) {
             cerr << "Failed test: was expecting an error opening a file with "
                     "no path"
                  << endl;
-            REQUIRE("unexpected exception" == nullptr);
+            REQUIRE(err.what() == nullptr);
             // return -1;
         }
 
         // try opening a DIRECTORY
         std::fstream f;
-        try
-        {
+        try {
             utils::file_open(f, ".");
-        }
-        catch (const std::system_error &e)
-        {
+        } catch (const std::system_error& e) {
             // std::cerr << e.what() << " | " << e.code() << endl;
             const std::string s{e.what()};
             REQUIRE(!s.empty());
-        }
-        catch (const std::exception &)
-        {
+        } catch (const std::exception&) {
             cerr << "Failed test: was expecting an error opening a file with "
                     "no path"
                  << endl;
-            REQUIRE("FAIL because should have caught system_error when opening a file with no path" == nullptr);
+            std::string bollo
+                = "FAIL because should have caught system_error when opening "
+                  "a file with no path";
+            REQUIRE(bollo.empty());
         }
 
         // try opening something that we should never have permission to read:
@@ -66,31 +58,23 @@ TEST_CASE("Checking file behaviours")
         const auto filepath = "/private/var/protected/xprotect/XPdb";
 #endif
         std::fstream f;
-        try
-        {
+        try {
             utils::file_open(f, filepath);
-        }
-        catch (const std::system_error &)
-        {
+        } catch (const std::system_error&) {
             // std::cout << e.what() << " | " << e.code() << endl;
-        }
-        catch (const std::exception &)
-        {
-            REQUIRE("Failed test: was expecting an error opening a file with no path" == nullptr);
+        } catch (const std::exception& err) {
+            REQUIRE(err.what() == nullptr);
             // << endl;
             // return -1;
         }
 
         // read from a known bad file
-        try
-        {
+        try {
             assert(!f);
             std::string s;
             auto nRead = file_read_some(s, f, 10, ".");
             REQUIRE(nRead == 0);
-        }
-        catch (const std::exception &e)
-        {
+        } catch (const std::exception& e) {
             std::string s = e.what();
             REQUIRE(s.find("is not open") != std::string::npos);
         }
@@ -98,9 +82,9 @@ TEST_CASE("Checking file behaviours")
 
     {
         std::fstream f;
-        try
-        {
-            std::string testFilePath = utils::find_file_up("testfile.txt", "ID3v2");
+        try {
+            std::string testFilePath
+                = utils::find_file_up("testfile.txt", "ID3v2");
             REQUIRE(!testFilePath.empty());
 
             utils::file_open(f, testFilePath);
@@ -125,9 +109,7 @@ TEST_CASE("Checking file behaviours")
             REQUIRE(where_to == 0);
             REQUIRE(ok);
             REQUIRE(f);
-        }
-        catch (const std::exception &e)
-        {
+        } catch (const std::exception& e) {
             cerr << "Bad news, an expected operation failed with: " << endl;
             cerr << e.what();
             REQUIRE(false);
@@ -135,13 +117,12 @@ TEST_CASE("Checking file behaviours")
         }
     }
 
-   //  char buf[2] = {};
-   //  volatile const auto wrong = buf[8];
-   //  cout << wrong << endl;
+    //  char buf[2] = {};
+    //  volatile const auto wrong = buf[8];
+    //  cout << wrong << endl;
 }
 
-int test_reader()
-{
+int test_reader() {
     return 0;
 }
 

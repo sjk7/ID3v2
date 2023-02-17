@@ -113,8 +113,8 @@ int test_file_reader() {
 
         // check seeking backwards from the end
         seeked = reader.seek(0, std::ios_base::end);
-        if (seeked == reader.getSize()) {
-            cerr << "As mad as it is, seeking beyond the end of a file is ok!";
+        if (seeked != reader.getSize()) {
+            cerr << "Expected a seek to the end of the file here.";
             return -1;
         }
         seeked = reader.seek(-2, std::ios_base::end);
@@ -127,7 +127,6 @@ int test_file_reader() {
             cerr << "Expected two.";
             return -1;
         }
-
 
         std::string sbak;
         auto got = reader.readInto(sbak, 10);
@@ -148,5 +147,5 @@ int main(int, char** argv) {
 
     cout << "Project running in: " << argv[0] << endl;
     int ret = test_file_reader();
-    return 0;
+    return ret;
 }
