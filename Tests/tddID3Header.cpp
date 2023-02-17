@@ -21,7 +21,7 @@ using std::endl;
 int test_invalid_id3v2_headers() {
     ID3v2::TagHeaderEx th{};
     auto verif = ID3v2::verifyTag(th);
-    if (verif != ID3v2::verifyTagResult::BadVersion) {
+    if (verif != ID3v2::verifyTagResult::BadID) {
         cerr << "No. Expected invalid from verif" << endl;
         return -1;
     }
@@ -46,9 +46,22 @@ int test_invalid_id3v2_headers() {
         return -1;
     }
     my::FileDataReader myReader(fn);
-    ID3v2::TagHeaderEx h = ID3v2::parseHeader(myReader, "Bad Tag in memory");
-    if (h.validity == ID3v2::verifyTagResult::OK) {
-        cerr << "No way should this tag be valid!" << endl;
+    bool threw = false;
+
+    try {
+
+        ID3v2::TagHeaderEx h
+            = ID3v2::parseHeader(myReader, "Bad Tag in memory");
+        if (h.validity == ID3v2::verifyTagResult::OK) {
+            cerr << "No way should this tag be valid!" << endl;
+            return -1;
+        }
+    } catch (const std::exception&) {
+        threw = true;
+    }
+
+    if (!threw) {
+        cerr << "No, a bad file should always throw";
         return -1;
     }
     // assert(h.validity != ID3v2::OK);

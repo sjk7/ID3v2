@@ -15,21 +15,28 @@ TEST_CASE("Test ID3Skipper on known bad file") {
     REQUIRE_MESSAGE("testfile.txt needs to be available.", !filePath.empty());
 
     ID3v2::ID3FileInfo myInfo = {0};
+    bool threw = false;
 
-    ID3v2::ID3v2Skipper skipper(
-        filePath, [&myInfo](my::FileDataReader&, ID3v2::ID3FileInfo& info) {
-            cout << "Header size is:" << info.tag.dataSizeInBytes << endl;
-            myInfo = info;
-        });
+    try {
 
-    REQUIRE(myInfo.tag.validity == ID3v2::verifyTagResult::BadVersion);
+        ID3v2::ID3v2Skipper skipper(
+            filePath, [&myInfo](my::FileDataReader&, ID3v2::ID3FileInfo& info) {
+                cout << "Header size is:" << info.tag.dataSizeInBytes << endl;
+                myInfo = info;
+            });
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    REQUIRE_MESSAGE("Should have thrown on bad file", threw);
+    REQUIRE_MESSAGE("Unexpected tag validity result",
+        (myInfo.tag.validity == ID3v2::verifyTagResult::BadVersion));
 }
 
 TEST_CASE("Test ID3Skipper on known good file") {
 
     using std::cout;
     const auto filePath = utils::find_file_up("sample.mp3", "ID3");
-    REQUIRE(!filePath.empty());
+    REQUIRE_MESSAGE("Must be able to find file sample.mp3", !filePath.empty());
 
     ID3v2::ID3FileInfo myInfo = {0};
 

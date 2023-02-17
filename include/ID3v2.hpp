@@ -261,12 +261,14 @@ static inline bool IsFrameHeaderValid(const FrameHeaderEx& f) {
 
 static inline verifyTagResult verifyTag(TagHeaderEx& h) {
 
-    if (h.sizeIndicator == 0) return verifyTagResult::BadSizeIndicator;
-    if (h.version[0] != 3) return verifyTagResult::BadVersion;
+    // although it's faster not to look at the ID first,
+    // we ought to check it first so as not to surprise callers.
     {
         std::string_view sv(h.ID, 3);
         if (sv != "ID3") return verifyTagResult::BadID;
     }
+    if (h.sizeIndicator == 0) return verifyTagResult::BadSizeIndicator;
+    if (h.version[0] != 3) return verifyTagResult::BadVersion;
 
     std::bitset<8> f(h.flags);
     if (f.test(7)) h.hasUnsynchronisation = true;
