@@ -14,7 +14,7 @@ TEST_CASE("Test ID3Skipper on known bad file") {
     const auto filePath = utils::find_file_up("testfile.txt", "ID3");
     REQUIRE_MESSAGE("testfile.txt needs to be available.", !filePath.empty());
 
-    ID3v2::ID3FileInfo myInfo = {0};
+    ID3v2::ID3FileInfo myInfo = {};
     bool threw = false;
 
     try {
@@ -38,7 +38,7 @@ TEST_CASE("Test ID3Skipper on known good file") {
     const auto filePath = utils::find_file_up("sample.mp3", "ID3");
     REQUIRE_MESSAGE("Must be able to find file sample.mp3", !filePath.empty());
 
-    ID3v2::ID3FileInfo myInfo = {0};
+    ID3v2::ID3FileInfo myInfo = {};
 
     ID3v2::ID3v2Skipper skipper(
         filePath, [&myInfo](my::FileDataReader&, ID3v2::ID3FileInfo& info) {

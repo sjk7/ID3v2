@@ -8,7 +8,7 @@ include_directories(include)
 project(ID3Tags LANGUAGES CXX)
 
 # warning levels, JustMyCode, Edit and Continue:
-include(${CMAKE_CURRENT_SOURCE_DIR}../config/CMakeLists.txt)
+include(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists.txt)
 
 
 enable_testing()

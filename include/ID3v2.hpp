@@ -92,7 +92,7 @@ struct CommentsFrame : TextFrame {};
 namespace detail {
     static bool IsFrameHeaderIDValid(const FrameHeader& f) {
 
-        auto i = 0;
+        size_t i = 0;
         while (i < sizeof(f.frameID)) {
             const char c = f.frameID[i++];
             // std::cout << (c);
@@ -292,7 +292,7 @@ static inline TagHeaderEx parseHeader(
 
     using std::cerr;
     using std::endl;
-    TagHeaderEx ret = {0};
+    TagHeaderEx ret = {};
     const auto data = dr.read(10);
     if (data.size() == 10) {
         memcpy(&ret, data.data(), TAG_HEADER_SIZE);
