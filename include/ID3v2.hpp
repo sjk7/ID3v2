@@ -248,6 +248,8 @@ struct FrameHeaderEx : FrameHeader {
         return decodeSynchSafe(sz);
     }
 
+    const std::string& AllData() const noexcept { return allData; }
+
     private:
     mutable size_t sizeInBytes = 0;
 };
@@ -392,5 +394,25 @@ static inline void FillTags(
         }
     }
 }
+
+// This class will spit out any valid ID3v2frames in CB.
+// It spits out the whole of the data, comprised of the header,
+// followed by all the data in the frame.
+struct TagDataReader {
+    template <typename CB>
+    TagDataReader(const std::string& filePath, CB&& cb) : m_dr(filePath) {
+        m_info.filePath = filePath;
+        m_info.totalFileSize = m_dr.getSize();
+        m_info.tag = ID3v2::parseHeader(m_dr, filePath);
+        if (m_info.tag.validity != ID3v2::verifyTagResult::OK) {
+            throw std::runtime_error("File: " + filePath + " has no ID3v2Tags");
+        }
+
+        ID3v2::FillTags(m_info, m_dr, std::forward<CB>(cb));
+    }
+
+    my::FileDataReader m_dr;
+    ID3v2::ID3FileInfo m_info = {};
+};
 
 } // namespace ID3v2
