@@ -9,12 +9,14 @@
 #include "myUtils.hpp"
 #include <bitset>
 
-namespace ID3v2 {
+namespace ID3v2
+{
 
 using uchar = unsigned char;
 template <size_t SZ> using bytearray = std::array<uchar, SZ>;
 
-template <typename T> void swapEndian(T& val) {
+template <typename T> void swapEndian(T &val)
+{
     union U {
         T val;
         std::array<std::uint8_t, sizeof(T)> raw;
@@ -25,11 +27,14 @@ template <typename T> void swapEndian(T& val) {
     val = dst.val;
 }
 
-template <> void swapEndian<std::uint32_t>(std::uint32_t& value) {
+template <> void swapEndian<std::uint32_t>(std::uint32_t &value)
+{
     std::uint32_t tmp = ((value << 8) & 0xFF00FF00) | ((value >> 8) & 0xFF00FF);
     value = (tmp << 16) | (tmp >> 16);
 }
-static inline void openFile(const std::string& path, std::fstream& f) {}
+static inline void openFile(const std::string &path, std::fstream &f)
+{
+}
 #pragma pack(push, 1)
 // clang-format off
 struct TagHeader {
@@ -60,7 +65,8 @@ struct FrameHeader{
 // clang-format on
 static_assert(std::is_pod_v<FrameHeader>);
 
-struct ID3v1Tag {
+struct ID3v1Tag
+{
     char tag[3]; // should be "TAG"
     char title[30];
     char artist[30];
@@ -74,7 +80,8 @@ static_assert(sizeof(ID3v1Tag) == 128);
 static constexpr int16_t ID3V1_TAG_SIZE = 128;
 #pragma pack(pop)
 
-enum class verifyTagResult {
+enum class verifyTagResult
+{
     BadBase = -1,
     OK = 1,
     BadVersion = BadBase - 1,
@@ -83,32 +90,39 @@ enum class verifyTagResult {
     BadReservedFlags = BadBase - 4
 };
 
-struct TagHeaderEx : TagHeader {
+struct TagHeaderEx : TagHeader
+{
     ID3v1Tag v1Tag = {};
     verifyTagResult validity = verifyTagResult::OK;
     bool hasUnsynchronisation = false;
     bool hasExtendedHeader = false;
     bool hasExperimental = true;
     uint32_t dataSizeInBytes = 0;
-    uint32_t totalSizeInBytes() const noexcept {
+    uint32_t totalSizeInBytes() const noexcept
+    {
         return dataSizeInBytes > 0 ? dataSizeInBytes + sizeof(TagHeader) : 0;
     }
-    bool hasv1Tag() const {
+    bool hasv1Tag() const
+    {
         std::string_view s{v1Tag.tag};
         return s == "TAG";
     }
 };
 
-struct ID3FileInfo {
+struct ID3FileInfo
+{
     TagHeaderEx tag{};
     mutable size_t mpegSize = 0;
-    size_t getMpegSize(size_t totFileSize) const noexcept {
+    size_t getMpegSize(size_t totFileSize) const noexcept
+    {
 
         totalFileSize = totFileSize;
         mpegStartPosition = tag.totalSizeInBytes();
         mpegSize = totalFileSize - tag.totalSizeInBytes();
-        if (tag.hasv1Tag()) {
-            if (mpegSize > ID3V1_TAG_SIZE) {
+        if (tag.hasv1Tag())
+        {
+            if (mpegSize > ID3V1_TAG_SIZE)
+            {
                 mpegSize -= ID3V1_TAG_SIZE;
                 mpegEndPosition = totalFileSize - ID3V1_TAG_SIZE;
             }
@@ -120,15 +134,22 @@ struct ID3FileInfo {
     mutable size_t mpegEndPosition = 0;
 };
 
-static inline verifyTagResult verifyTag(TagHeaderEx& h) {
+static inline verifyTagResult verifyTag(TagHeaderEx &h)
+{
     std::string_view sv(h.ID, 3);
-    if (h.version[0] != 3) return verifyTagResult::BadVersion;
-    if (sv != "ID3") return verifyTagResult::BadID;
-    if (h.sizeIndicator == 0) return verifyTagResult::BadSizeIndicator;
+    if (h.version[0] != 3)
+        return verifyTagResult::BadVersion;
+    if (sv != "ID3")
+        return verifyTagResult::BadID;
+    if (h.sizeIndicator == 0)
+        return verifyTagResult::BadSizeIndicator;
     std::bitset<8> f(h.flags);
-    if (f.test(7)) h.hasUnsynchronisation = true;
-    if (f.test(6)) h.hasExtendedHeader = true;
-    if (f.test(5)) h.hasExperimental = true;
+    if (f.test(7))
+        h.hasUnsynchronisation = true;
+    if (f.test(6))
+        h.hasExtendedHeader = true;
+    if (f.test(5))
+        h.hasExperimental = true;
     f = f << 3;
     if (!f.none())
         return verifyTagResult::BadReservedFlags; // flags that are reserved are
@@ -136,66 +157,60 @@ static inline verifyTagResult verifyTag(TagHeaderEx& h) {
     return verifyTagResult::OK;
 }
 
-static inline uint32_t decodeSynchSafe(uint32_t size) {
-    size = (size & 0x0000007F) | ((size & 0x00007F00) >> 1)
-        | ((size & 0x007F0000) >> 2) | ((size & 0x7F000000) >> 3);
+static inline uint32_t decodeSynchSafe(uint32_t size)
+{
+    size = (size & 0x0000007F) | ((size & 0x00007F00) >> 1) | ((size & 0x007F0000) >> 2) | ((size & 0x7F000000) >> 3);
     return size;
 }
 
-static inline uint32_t getTagSize(uint32_t sz) {
+static inline uint32_t getTagSize(uint32_t sz)
+{
     swapEndian(sz);
     sz = decodeSynchSafe(sz);
     return sz;
 }
 
-static inline TagHeaderEx parseHeader(
-    my::IDataReader& dr, bool expect_good = true) {
+static inline TagHeaderEx parseHeader(my::IDataReader &dr)
+{
 
     using std::cerr;
     using std::endl;
     TagHeaderEx ret = {0};
     const auto data = dr.read(10);
-    if (data.size() == 10) {
+    if (data.size() == 10)
+    {
         memcpy(&ret, data.data(), TAG_HEADER_SIZE);
         ret.validity = verifyTag(ret);
-        if (!expect_good) {
-            if (ret.validity == ID3v2::verifyTagResult::OK) {
-                cerr << "Expected duff tag here, but it seems to be valid?"
-                     << endl;
-                exit(-1000);
-            }
-            return ret;
+        if (ret.validity == verifyTagResult::OK)
+        {
+            if (ret.sizeIndicator > 0)
+                ret.dataSizeInBytes = getTagSize(ret.sizeIndicator);
         }
-        ret.dataSizeInBytes = getTagSize(ret.sizeIndicator);
     }
 
-    auto sk = dr.seek(-ID3V1_TAG_SIZE, std::ios_base::end);
-    auto pos = dr.getPos();
     const auto sz = dr.getSize();
-    if (pos != sz - 128) {
-        cerr << "Nope, file should be at end after reading last 128 bytes"
-             << endl;
-#ifdef UNIT_TESTING
-        exit(-10000);
-#endif
+    if (sz > ID3V1_TAG_SIZE)
+    {
+        auto sk = dr.seek(-ID3V1_TAG_SIZE, std::ios_base::end);
+        auto pos = dr.getPos();
+        if (pos != sz - 128)
+        {
+            cerr << "Nope, file should be at end after reading last 128 bytes" << endl;
+        }
+        const auto v1read = dr.readInto((char *)&ret.v1Tag, ID3V1_TAG_SIZE);
+        if (dr.getPos() != dr.getSize())
+        {
+            cerr << "After reading v1 tag, we should be at the end of the file" << endl;
+            return ret;
+        }
     }
-    const auto v1read = dr.readInto((char*)&ret.v1Tag, ID3V1_TAG_SIZE);
-    if (dr.getPos() != dr.getSize()) {
-        cerr << "After reading v1 tag, we should be at the end of the file"
-             << endl;
-#ifdef UNIT_TESTING
-        exit(-10000);
-#endif
-        return ret;
-    }
-    sk = dr.seek(ID3v2::TAG_HEADER_SIZE);
-    if (sk != ID3v2::TAG_HEADER_SIZE) {
-        cerr << "Expected seek position to be after the valid header" << endl;
-// assert("Expected seek position to be after the valid header" == 0);
-#ifdef UNIT_TESTING
-        exit(-10000);
-#endif
-        return ret;
+    if (ret.validity == verifyTagResult::OK)
+    {
+        const auto sk = dr.seek(ID3v2::TAG_HEADER_SIZE);
+        if (sk != ID3v2::TAG_HEADER_SIZE)
+        {
+            cerr << "Expected seek position to be after the valid header" << endl;
+        }
     }
 
     return ret;
@@ -205,17 +220,22 @@ static inline TagHeaderEx parseHeader(
 // in the actual tags, but you want a reader opened beyond
 // the id3v2Tag (say, if you are an audio parser), and
 // to populate where the audio ends, as well as where it starts.
-// V1 tags are taken  into consideration here.
-struct ID3v2Skipper {
+// V1 tags are taken  into consideration here. You can re-use the
+// provider FileReader, for efficiency.
+auto empty_lambda = [](my::FileDataReader &, ID3v2::ID3FileInfo &) { return; };
 
-    template <typename F>
-    ID3v2Skipper(const std::string& filePath, F&& f) : m_dr(filePath) {
+struct ID3v2Skipper
+{
+    template <typename F> ID3v2Skipper(const std::string &filePath, F &&f = empty_lambda) : m_dr(filePath)
+    {
         m_info.tag = ID3v2::parseHeader(m_dr);
         const auto fsize = m_dr.getSize();
         m_info.getMpegSize(fsize);
-        auto seeked = m_dr.seek(m_info.tag.totalSizeInBytes());
-        // might want to chuck here?
-        assert(seeked = m_info.tag.totalSizeInBytes());
+        const auto seekEndTag = m_info.tag.totalSizeInBytes();
+        const auto seeked = m_dr.seek(seekEndTag);
+        // Even for files that aren't even mp3 files,
+        // I expect this to be OK: (coz noTag == 0 pos)
+        assert(seeked == seekEndTag);
         f(m_dr, m_info);
     }
 

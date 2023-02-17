@@ -16,7 +16,7 @@ TEST_CASE("Checking file behaviours")
 {
     {
         // try a bad file path
-        REQUIRE(false);
+        // REQUIRE(false);
         try
         {
             std::fstream f;

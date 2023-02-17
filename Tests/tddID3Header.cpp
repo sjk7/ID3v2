@@ -40,7 +40,7 @@ int test_invalid_id3v2_headers() {
         return -1;
     }
     my::FileDataReader myReader(fn);
-    ID3v2::TagHeaderEx h = ID3v2::parseHeader(myReader, false);
+    ID3v2::TagHeaderEx h = ID3v2::parseHeader(myReader);
     if (h.validity == ID3v2::verifyTagResult::OK) {
         cerr << "No way should this tag be valid!" << endl;
         return -1;
