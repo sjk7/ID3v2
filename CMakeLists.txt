@@ -34,15 +34,6 @@ add_test(NAME TestBadHeader COMMAND BadID3HeaderTest)
 add_test(NAME ReadValidHeaderTag COMMAND ReadValidTagHeader)
 add_test(NAME ID3Skipper COMMAND TestID3Skipper)
 
-# tddfile, tddFileReader, BadID3Headertest, ReadValidTagHeader, TestID3Skipper)
-#
-#add_custom_command(
-#     TARGET ${UNIT_TEST}
-#     COMMENT "Run tests"
-#     POST_BUILD 
-#     COMMAND ${UNIT_TEST}
-#)
-#
 
 
 
