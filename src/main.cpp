@@ -1,37 +1,70 @@
 
 #define CATCH_CONFIG_MAIN
 #include "catch2KLJ.hpp"
+
 #include "myUtils.hpp"
 #include "FileDataReader.hpp"
 #include "ID3v2.hpp"
 using ID3v2::TagDataReader;
 
-void ParseKnownBad() {
-    const auto filePath = utils::find_file_up("testfile.txt", "ID3");
-    REQUIRE_MESSAGE(!filePath.empty(), "testfile.txt needed for this test");
-    TagDataReader parser(filePath, [](ID3v2::FrameHeaderEx&) {});
-}
+TEST_CASE("ParseKnownBad") {
 
-void ParseKnownGood() {
     using std::cout;
     using std::endl;
-    const auto filePath = utils::find_file_up("sample.mp3", "ID3");
-    REQUIRE_MESSAGE(!filePath.empty(), "sample.mp3 needed for this test");
-    TagDataReader parser(filePath, [](ID3v2::FrameHeaderEx& f) {
-        std::string nullstr(1, '\0');
-        const auto d
-            = utils::strings::replace_all_copy(f.AllData(), nullstr, "<NUL>");
-        cout << "There is a tag, with ID: " << f.IDString()
-             << ", length: " << ID3v2::FrameHeaderEx::GetFrameSize(f)
-             << " bytes.\nData: " << d << endl;
-    });
-    cout << "ok" << endl;
+    bool thrown = false;
+    std::string filePath;
+    try {
+
+        filePath = utils::find_file_up("testfile.txt", "ID3v2");
+        REQUIRE_MESSAGE(!filePath.empty(), "testfile.txt needed for this test");
+        TagDataReader parser(filePath, [](ID3v2::FrameHeaderEx&) {});
+    } catch (const std::exception&) {
+        thrown = true;
+    }
+    REQUIRE(thrown);
+    cout << "ParseKnownBad: OK -- exception was thrown as expected\nFor file: "
+         << filePath << endl;
 }
 
-TEST_CASE("ParseGoodFile") {
-    REQUIRE_NOTHROW(ParseKnownGood());
+void ParseKnownGood(const std::string& fileName) {
+    using std::cout;
+    using std::endl;
+
+    const auto filePath = utils::find_file_up(fileName, "ID3v2");
+    REQUIRE_MESSAGE(!filePath.empty(), fileName + " needed for this test");
+    bool thrown = false;
+    try {
+
+        TagDataReader parser(filePath, [](ID3v2::FrameHeaderEx& f) {
+            std::string nullstr(1, '\0');
+            const auto d = utils::strings::replace_all_copy(
+                f.AllData(), nullstr, "<NUL>");
+            cout << "There is a tag, with ID: " << f.IDString()
+                 << ", length: " << ID3v2::FrameHeaderEx::GetFrameSize(f)
+                 << " bytes.\nData: " << d << endl;
+
+            std::string_view id{f.frameID, 4};
+            if (id == "APIC") {
+                cout << "This tag has an embedded image" << endl;
+            }
+        });
+        cout << "ok. for filepath: " << filePath << endl;
+    } catch (...) {
+        thrown = true;
+    }
+
+    REQUIRE(!thrown);
 }
 
-// TEST_CASE("ParseShouldThrow") {
-//     REQUIRE_THROWS_AS(ParseKnownBad(), std::runtime_error);
-// }
+TEST_CASE("DumpGoodFilesOutput") {
+
+    SECTION("Known good file: sample.mp3") {
+        ParseKnownGood("sample.mp3");
+    }
+    SECTION("Busted internally, but tag readable: BustedButReadableTag.mp3") {
+        ParseKnownGood("BustedButReadableTag.mp3");
+    }
+    SECTION("Some Tags that were saved in DPS: sampleSAVEDINDPS.mp3") {
+        ParseKnownGood("sampleSAVEDINDPS.mp3");
+    }
+}

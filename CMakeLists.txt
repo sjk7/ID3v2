@@ -34,6 +34,33 @@ add_test(NAME TestBadHeader COMMAND BadID3HeaderTest)
 add_test(NAME ReadValidHeaderTag COMMAND ReadValidTagHeader)
 add_test(NAME ID3Skipper COMMAND TestID3Skipper)
 
+add_custom_command(
+        TARGET ID3HeaderApp PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/TestFileSamples/BustedButReadableTag.mp3
+                ${CMAKE_CURRENT_BINARY_DIR}/BustedButReadableTag.mp3)
+
+                add_custom_command(
+        TARGET ID3HeaderApp PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/TestFileSamples/sample.mp3
+                ${CMAKE_CURRENT_BINARY_DIR}/sample.mp3)
+
+                add_custom_command(
+        TARGET ID3HeaderApp PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/TestFileSamples/sampleSAVEDINDPS.mp3
+                ${CMAKE_CURRENT_BINARY_DIR}/sampleSAVEDINDPS.mp3)
+
+                                add_custom_command(
+        TARGET ID3HeaderApp PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/TestFileSamples/testfile.txt
+                ${CMAKE_CURRENT_BINARY_DIR}/testfile.txt)
+
+
+               
+
 
 
 

@@ -21,7 +21,7 @@ TEST_CASE("Test ID3Skipper on known bad file") {
 
         ID3v2::ID3v2Skipper skipper(
             filePath, [&myInfo](my::FileDataReader&, ID3v2::ID3FileInfo& info) {
-                cout << "Header size is:" << info.tag.dataSizeInBytes << endl;
+                cout << "Header size is:" << info.Tag().dataSizeInBytes << endl;
                 myInfo = info;
             });
     } catch (const std::exception&) {
@@ -29,30 +29,30 @@ TEST_CASE("Test ID3Skipper on known bad file") {
     }
     REQUIRE_MESSAGE("Should have thrown on bad file", threw);
     REQUIRE_MESSAGE("Unexpected tag validity result",
-        (myInfo.tag.validity == ID3v2::verifyTagResult::BadVersion));
+        (myInfo.Tag().validity == ID3v2::verifyTagResult::BadVersion));
 }
 
 TEST_CASE("Test ID3Skipper on known good file") {
 
     using std::cout;
-    const auto filePath = utils::find_file_up("sample.mp3", "ID3");
+    const auto filePath = utils::find_file_up("sample.mp3", "ID3v2");
     REQUIRE_MESSAGE("Must be able to find file sample.mp3", !filePath.empty());
 
     ID3v2::ID3FileInfo myInfo = {};
 
     ID3v2::ID3v2Skipper skipper(
         filePath, [&myInfo](my::FileDataReader&, ID3v2::ID3FileInfo& info) {
-            cout << "Header size is:" << info.tag.dataSizeInBytes << endl;
+            cout << "Header size is:" << info.Tag().dataSizeInBytes << endl;
             myInfo = info;
         });
 
     auto& dr = skipper.m_dr;
     const auto pos = dr.getPos();
     cout << "Audio starts at position: " << pos << endl;
-    REQUIRE((size_t)pos == myInfo.mpegStartPosition);
+    REQUIRE(pos == myInfo.MPEGStartPosition());
     std::string mpegData;
-    auto got = dr.readInto(mpegData, myInfo.mpegSize);
-    REQUIRE(got == myInfo.mpegSize);
+    auto got = dr.readInto(mpegData, myInfo.MPEGSize());
+    REQUIRE(got == myInfo.MPEGSize());
 
     const auto szPrint = std::min(mpegData.size(), size_t(150));
     cout << "Here's some mpeg data (could be padding thou) ... \n\n"

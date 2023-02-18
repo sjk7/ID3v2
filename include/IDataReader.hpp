@@ -18,8 +18,9 @@ struct IDataReader {
         std::streamoff pos, std::ios::seekdir dir = std::ios::beg)
         = 0;
     virtual std::string_view read(size_t&& bytes) = 0;
-    virtual size_t readInto(std::string&, const size_t nBytes) = 0;
+    virtual std::streamsize readInto(std::string&, const size_t nBytes) = 0;
+    virtual std::streamsize readInto(void* dest, size_t nBytes) noexcept = 0;
+
     virtual const std::string& data() const noexcept = 0;
-    virtual size_t readInto(void* dest, size_t nBytes) noexcept = 0;
 };
 } // namespace my

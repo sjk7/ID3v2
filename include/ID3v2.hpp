@@ -43,7 +43,9 @@ struct TagHeader {
     uchar flags;            // ID3v2 flags             %abc00000
     uint32_t sizeIndicator; // ID3v2 size              4* %0xxxxxxx
 };
-static constexpr inline auto TAG_HEADER_SIZE = sizeof(TagHeader);
+
+// we use a *signed* type here, because it may be used for seeking backward
+static constexpr inline std::streamsize TAG_HEADER_SIZE = sizeof(TagHeader);
 
 static_assert(std::is_pod_v<TagHeader>);
 
@@ -52,7 +54,9 @@ struct TagExtendedHeader{
     unsigned char flags[2];         // $xx xx
     uint32_t paddingSizeIndicator;  // $xx xx xx xx
 };
-static constexpr inline auto EXT_TAG_HEADER_SIZE = sizeof(TagExtendedHeader);
+
+// we use a *signed* type here, because it may be used for seeking backward
+static constexpr inline std::streamsize EXT_TAG_HEADER_SIZE = sizeof(TagExtendedHeader);
 static_assert(std::is_pod_v<TagExtendedHeader>);
 
 struct FrameHeader{
@@ -64,6 +68,9 @@ struct FrameHeader{
 };
 // clang-format on
 static_assert(std::is_pod_v<FrameHeader>);
+// we use a *signed* type here, because it may be used for seeking backward
+static constexpr inline std::streamsize FRAME_HEADER_SIZE
+    = sizeof(TagExtendedHeader);
 
 struct ID3v1Tag {
     char tag[3]; // should be "TAG"
@@ -76,7 +83,8 @@ struct ID3v1Tag {
 };
 static_assert(std::is_pod_v<ID3v1Tag>);
 static_assert(sizeof(ID3v1Tag) == 128);
-static constexpr int16_t ID3V1_TAG_SIZE = 128;
+// we use a *signed* type here, because it may be used for seeking backward
+static constexpr std::streamsize ID3V1_TAG_SIZE = 128;
 #pragma pack(pop)
 
 struct AbstractFrame {
@@ -167,32 +175,82 @@ struct TagHeaderEx : TagHeader {
     }
 
     bool hasv1Tag() const {
-        std::string_view s{v1Tag.tag};
+        assert(v1Checked != -1);
+        std::string_view s{v1Tag.tag, 3};
         return s == "TAG";
     }
+
+    int v1Checked = -1;
 };
 
 struct ID3FileInfo {
 
-    TagHeaderEx tag{};
-    mutable size_t mpegSize = 0;
-    size_t getMpegSize(size_t totFileSize) const noexcept {
+    const TagHeaderEx& Tag() const noexcept { return m_tag; }
 
-        totalFileSize = totFileSize;
-        mpegStartPosition = tag.totalSizeInBytes();
-        mpegSize = totalFileSize - tag.totalSizeInBytes();
-        if (tag.hasv1Tag()) {
+    void SetTag(const TagHeaderEx& t) {
+        m_tag = t;
+        setPositions();
+    }
+
+    size_t getMpegSize() const noexcept {
+
+        if (m_tag.validity == verifyTagResult::OK) {
+            assert(mpegSize);
+        }
+        return mpegSize;
+    }
+
+    auto TotalFileSize() const noexcept {
+        assert(totalFileSize > 0);
+        return totalFileSize;
+    }
+    auto MPEGStartPosition() const noexcept {
+        assert(mpegStartPosition > 0);
+        return mpegStartPosition;
+    }
+
+    auto MPEGEndPosition() const noexcept {
+        assert(mpegEndPosition > 0);
+        return mpegEndPosition;
+    }
+    const auto& FilePath() const noexcept { return filePath; }
+    auto MPEGSize() const noexcept {
+        assert(mpegSize > 0);
+        return mpegSize;
+    }
+
+    // might throw if it can't get filesize
+    void FilePathSet(const std::string& path) {
+        filePath = path;
+        fs::path p{path};
+        totalFileSize = fs::file_size(p);
+    }
+
+    // this is data we found in the tag, but was totally undreadable to us.
+    // You, as an educated caller, might know what to do with it
+    std::string paddingJunk;
+
+    private:
+    mutable std::streamsize totalFileSize = -1;
+    mutable std::streamoff mpegStartPosition = -1;
+    mutable std::streamoff mpegEndPosition = -1;
+    mutable std::streamsize mpegSize = -1;
+    TagHeaderEx m_tag = {};
+    std::string filePath;
+
+    void setPositions() {
+        assert(totalFileSize > 0); // set on filePathSet
+        mpegStartPosition = m_tag.totalSizeInBytes();
+        mpegSize = totalFileSize - m_tag.totalSizeInBytes();
+        if (m_tag.hasv1Tag()) {
             if (mpegSize > ID3V1_TAG_SIZE) {
                 mpegSize -= ID3V1_TAG_SIZE;
                 mpegEndPosition = totalFileSize - ID3V1_TAG_SIZE;
             }
+        } else {
+            mpegEndPosition = totalFileSize;
         }
-        return mpegSize;
     }
-    mutable size_t totalFileSize = 0;
-    mutable size_t mpegStartPosition = 0;
-    mutable size_t mpegEndPosition = 0;
-    std::string filePath;
 };
 
 struct FrameHeaderEx : FrameHeader {
@@ -213,10 +271,10 @@ struct FrameHeaderEx : FrameHeader {
         if (sizeInBytes == 0) {
             sizeInBytes = GetFrameSize(*this);
         }
-        assert(m_info.totalFileSize);
-        if (sizeInBytes > m_info.totalFileSize) {
+        assert(m_info.TotalFileSize());
+        if (sizeInBytes > m_info.TotalFileSize()) {
             throw std::runtime_error(
-                m_info.filePath + "Frame size is more than the entire file!");
+                m_info.FilePath() + "Frame size is more than the entire file!");
         }
         return includingHeader ? sizeInBytes + sizeof(FrameHeader)
                                : sizeInBytes;
@@ -228,16 +286,16 @@ struct FrameHeaderEx : FrameHeader {
             const auto seeked = dr.seek(loc);
             if (seeked != loc) {
                 throw std::runtime_error(
-                    m_info.filePath + " cannot seek to data start position");
+                    m_info.FilePath() + " cannot seek to data start position");
             }
         }
 
         const auto sz = SizeInBytes();
         allData.resize(sz);
-        const auto rd = dr.readInto(allData.data(), sz);
+        const auto rd = static_cast<size_t>(dr.readInto(allData.data(), sz));
         if (rd != sz) {
-            throw std::runtime_error(
-                m_info.filePath + " failed to read all the data from the file");
+            throw std::runtime_error(m_info.FilePath()
+                + " failed to read all the data from the file");
         }
         return allData.size();
     }
@@ -251,7 +309,7 @@ struct FrameHeaderEx : FrameHeader {
     const std::string& AllData() const noexcept { return allData; }
 
     private:
-    mutable size_t sizeInBytes = 0;
+    mutable std::streamsize sizeInBytes = 0;
 };
 
 static inline bool IsFrameHeaderValid(const FrameHeaderEx& f) {
@@ -307,6 +365,7 @@ static inline TagHeaderEx parseHeader(
     }
 
     const auto sz = dr.getSize();
+    ret.v1Checked = 1;
     if (sz > ID3V1_TAG_SIZE) {
         dr.seek(-ID3V1_TAG_SIZE, std::ios_base::end);
         auto pos = dr.getPos();
@@ -344,11 +403,9 @@ struct ID3v2Skipper {
     template <typename F>
     ID3v2Skipper(const std::string& filePath, F&& f = empty_lambda)
         : m_dr(filePath) {
-        m_info.filePath = filePath;
-        m_info.tag = ID3v2::parseHeader(m_dr, filePath);
-        const auto fsize = m_dr.getSize();
-        m_info.getMpegSize(fsize);
-        const auto seekEndTag = m_info.tag.totalSizeInBytes();
+        m_info.FilePathSet(filePath);
+        m_info.SetTag(ID3v2::parseHeader(m_dr, filePath));
+        const auto seekEndTag = m_info.Tag().totalSizeInBytes();
         const auto seeked = m_dr.seek(seekEndTag);
         // Even for files that aren't even mp3 files,
         // I expect this to be OK: (coz noTag == 0 pos)
@@ -363,10 +420,14 @@ struct ID3v2Skipper {
 };
 
 template <typename CB>
-static inline void FillTags(
-    const ID3FileInfo& info, my::IDataReader& dr, CB&& cb) {
 
-    const std::streamoff dataStartPos = info.tag.hasExtendedHeader
+static inline void FillTags(ID3FileInfo& info, my::IDataReader& dr, CB&& cb) {
+
+    using std::cerr;
+    using std::endl;
+
+    const auto& tag = info.Tag();
+    const std::streamoff dataStartPos = tag.hasExtendedHeader
         ? sizeof(TagHeader) + sizeof(TagExtendedHeader)
         : sizeof(TagHeader);
 
@@ -375,12 +436,12 @@ static inline void FillTags(
         const auto pos = dr.seek(dataStartPos);
         if (pos != dataStartPos) {
             throw std::runtime_error(
-                info.filePath + ": could not seek to data start position");
+                info.FilePath() + ": could not seek to data start position");
         }
         curPos = pos;
     }
 
-    const auto endPos = info.tag.dataSizeInBytes;
+    const auto endPos = tag.dataSizeInBytes;
 
     while (dr.getPos() < endPos) {
         const auto pos = dr.getPos();
@@ -392,7 +453,36 @@ static inline void FillTags(
             assert(frameSize > 0);
             cb(hdr);
         } else {
-            assert(0);
+            // we read 10 bytes when attempting to read a head
+            dr.seek(-ID3v2::TAG_HEADER_SIZE, std::ios::cur);
+            const auto whereNow = dr.getPos();
+            assert(whereNow == pos);
+            const auto mpegStart = info.MPEGStartPosition();
+            const auto remain_tag = mpegStart - pos;
+            if (remain_tag > 0) {
+
+                std::string& padding = info.paddingJunk;
+                dr.readInto(padding, remain_tag);
+                const auto justPaddingRemains = std::all_of(
+                    padding.begin(), padding.end(), [](const char c) {
+                        if (c == '\0') return true;
+                        return false;
+                    });
+                if (justPaddingRemains) {
+                    return;
+                } else {
+                    const auto junkPos = padding.find_first_not_of('\0');
+                    const auto wtf = padding.substr(junkPos);
+                    std::cout << wtf << std::endl;
+                    std::cout << junkPos << std::endl;
+                    MYTRACE(MyTraceFlags::defaults, info.FilePath(),
+                        "Has appparent junk after the tags, and before the "
+                        "start of audio. info.paddingJunk contains the junk");
+                    return;
+                }
+            }
+            MYTRACE(MyTraceFlags::defaults, info.FilePath(),
+                "Have invalid ID3v2 Frame Header at file position: ", pos);
         }
     }
 }
@@ -403,10 +493,12 @@ static inline void FillTags(
 struct TagDataReader {
     template <typename CB>
     TagDataReader(const std::string& filePath, CB&& cb) : m_dr(filePath) {
-        m_info.filePath = filePath;
-        m_info.totalFileSize = m_dr.getSize();
-        m_info.tag = ID3v2::parseHeader(m_dr, filePath);
-        if (m_info.tag.validity != ID3v2::verifyTagResult::OK) {
+
+        m_info.FilePathSet(filePath);
+        assert(m_dr.is_open());
+        m_info.SetTag(ID3v2::parseHeader(m_dr, filePath));
+
+        if (m_info.Tag().validity != ID3v2::verifyTagResult::OK) {
             throw std::runtime_error("File: " + filePath + " has no ID3v2Tags");
         }
 

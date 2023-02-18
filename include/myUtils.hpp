@@ -6,6 +6,7 @@
 
 #ifndef UTILS_HPP
 #define UTILS_HPP
+#include "myDebug.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -29,6 +30,10 @@
 namespace fs = std::filesystem;
 #else
 namespace fs = std::__fs::filesystem;
+#endif
+
+#if __cplusplus > 201703L
+#define HAVE_CPP_20
 #endif
 
 namespace utils {
@@ -151,11 +156,13 @@ namespace strings {
         trim(s);
         return s;
     }
+#ifdef HAVE_CPP20
     // helper for std::unordered_map in c++20 with heterogeneous lookup,
     // assuming your map is declared something like:
     // using my_hetero_type
     // = std::unordered_map<std::string, column_t, string_hash, ci_equal<>>;
     // NOTE: NOT THREAD SAFE!!
+
     struct string_hash_transparent_ci {
         using is_transparent = void;
         static inline std::string temp;
@@ -182,6 +189,21 @@ namespace strings {
             return strcasecmp(k1.data(), k2.data()) == 0;
         }
     };
+#else
+#ifdef _MSC_VER
+#pragma warning(disable : 4130)
+#endif
+    struct string_hash_transparent_ci {
+        string_hash_transparent_ci() {
+            assert(
+                "string_hash_transparent comparator not available until c++ 20"
+                == nullptr);
+        }
+#ifdef _MSC_VER
+#pragma warning(default : 4130)
+#endif
+    };
+#endif
 
     template <typename... Args>
     static inline std::string concat_into(
@@ -462,6 +484,9 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
 // In just the same way clang-format looks for his file.
 [[maybe_unused]] static inline std::string find_file_up(
     const std::string& file_to_find, const std::string& stop_folder) {
+
+    using std::cout;
+    using std::endl;
     char buf[512] = {0};
     char* cwd = 0;
 #ifdef _WIN32
@@ -482,8 +507,19 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
             break;
         }
         if (this_dir.filename() == stop_folder) {
+            for (const fs::directory_entry& dir_entry :
+                fs::recursive_directory_iterator(this_dir)) {
+
+                fs::path p(dir_entry);
+                if (p.filename() == file_to_find) {
+                    found = 1;
+                    finding_file = p;
+                    break;
+                }
+            }
             break;
         }
+
         this_dir = this_dir.parent_path();
         if (this_dir == this_dir.parent_path()) {
             break; //  no more parents

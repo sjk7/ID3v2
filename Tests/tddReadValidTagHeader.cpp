@@ -15,7 +15,7 @@ int read_valid_header() {
     using std::cerr;
     using std::endl;
 
-    const auto fileName = utils::find_file_up("sample.mp3", "ID3");
+    const auto fileName = utils::find_file_up("sample.mp3", "ID3v2");
     assert(!fileName.empty());
     cout << "Mp3 file located at: " << fileName << endl;
     my::FileDataReader fdr(fileName);
@@ -37,7 +37,8 @@ int read_valid_header() {
     return 0;
 }
 
-int main() {
+int main(int, char**) {
+
     int ret = read_valid_header();
     if (ret == 0) puts("OK");
     return 0;

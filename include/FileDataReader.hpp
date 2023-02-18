@@ -12,6 +12,8 @@
 
 namespace my {
 struct FileDataReader : IDataReader {
+
+    bool is_open() const noexcept { return m_f.is_open(); }
     virtual std::streamsize getSize(
         bool refresh = false) const noexcept override {
         if (refresh || m_size <= 0) {
@@ -50,7 +52,7 @@ struct FileDataReader : IDataReader {
 
     // read into your own buffer. Does not throw, but returns
     // how many bytes you actually got.
-    virtual size_t readInto(std::string& s, size_t nBytes) override {
+    virtual std::streamsize readInto(std::string& s, size_t nBytes) override {
         try {
             auto sz = static_cast<size_t>(
                 utils::file_read_some(s, m_f, nBytes, m_filePath));
@@ -61,7 +63,8 @@ struct FileDataReader : IDataReader {
         }
     }
 
-    virtual size_t readInto(void* dest, size_t nBytes) noexcept override {
+    virtual std::streamsize readInto(
+        void* dest, size_t nBytes) noexcept override {
         try {
             m_f.read((char*)dest, nBytes);
             m_pos += nBytes;
