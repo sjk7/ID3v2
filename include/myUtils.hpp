@@ -32,7 +32,11 @@ namespace fs = std::filesystem;
 #ifdef __linux__
 namespace fs = std::filesystem;
 #else
+#ifdef __clang__
 namespace fs = std::__fs::filesystem;
+#else
+namespace fs = std::filesystem;
+#endif
 #endif
 #endif
 
