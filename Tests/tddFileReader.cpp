@@ -24,7 +24,7 @@ using namespace std;
 using namespace my;
 
 int test_file_reader() {
-    const auto filepath = utils::find_file_up("testfile.txt", "ID3v2");
+    const auto filepath = utils::find_file_up("testfile.bin", "ID3v2");
     assert(!filepath.empty());
     try {
         FileDataReader reader(filepath.string());
@@ -80,7 +80,8 @@ int test_file_reader() {
             thrown = true;
             auto posNow = reader.getPos();
             if (posNow != 27) {
-                cerr << "Unexpected: file pos ought to be 27 hr";
+                cerr << "Unexpected: file pos ought to be 27 hr, but it is: "
+                     << posNow << endl;
                 return -88;
             }
         }

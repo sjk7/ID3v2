@@ -16,8 +16,8 @@ TEST_CASE("ParseKnownBad") {
 
     try {
 
-        filePath = utils::find_file_up("testfile.txt", "ID3v2");
-        REQUIRE_MESSAGE(!filePath.empty(), "testfile.txt needed for this test");
+        filePath = utils::find_file_up("testfile.bin", "ID3v2");
+        REQUIRE_MESSAGE(!filePath.empty(), "testfile.bin needed for this test");
         TagDataReader parser(filePath.string(), [](ID3v2::FrameHeaderEx&) {});
     } catch (const std::exception&) {
         thrown = true;
@@ -82,11 +82,10 @@ void ParseAllInKnownGood(const std::string& fileName) {
     cout << "----------------- All Tag Data in " << filePath.stem()
          << "-----------------\n\n";
 
-    
     for (const auto& tag : tags) {
         const auto& ptr = tag.second;
         std::string rep = ptr->PayLoad();
-        // 
+        //
         const auto unicode = ptr->textEncoding;
         std::string uid = ptr->uid();
         if (uid.substr(0, 4) == "APIC") {
@@ -95,7 +94,7 @@ void ParseAllInKnownGood(const std::string& fileName) {
 
         cout << "tag: "
              << "uid: " << uid;
-        if (unicode == ID3v2::TextEncodingType::unicode_with_bom){
+        if (unicode == ID3v2::TextEncodingType::unicode_with_bom) {
             cout << " *********** UNICODE VALUE *************" << endl;
             rep = rep.substr(2);
         }

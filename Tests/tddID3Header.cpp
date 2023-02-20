@@ -40,9 +40,9 @@ int test_invalid_id3v2_headers() {
         return -1;
     }
 
-    const auto fn = utils::find_file_up("testfile.txt", "ID3v2");
+    const auto fn = utils::find_file_up("testfile.bin", "ID3v2");
     if (fn.empty()) {
-        assert("testfile.txt cannot be found, cannot continue" == nullptr);
+        assert("testfile.bin cannot be found, cannot continue" == nullptr);
         return -1;
     }
     my::FileDataReader myReader(fn.string());

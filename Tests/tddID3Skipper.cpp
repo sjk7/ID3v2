@@ -11,8 +11,8 @@
 using namespace std;
 
 TEST_CASE("Test ID3Skipper on known bad file") {
-    const auto filePath = utils::find_file_up("testfile.txt", "ID3");
-    REQUIRE_MESSAGE("testfile.txt needs to be available.", !filePath.empty());
+    const auto filePath = utils::find_file_up("testfile.bin", "ID3");
+    REQUIRE_MESSAGE("testfile.bin needs to be available.", !filePath.empty());
 
     ID3v2::ID3FileInfo myInfo = {};
     bool threw = false;

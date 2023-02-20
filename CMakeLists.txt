@@ -63,8 +63,8 @@ add_custom_command(
                                 add_custom_command(
         TARGET ID3HeaderApp PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
-                ${CMAKE_SOURCE_DIR}/TestFileSamples/testfile.txt
-                ${CMAKE_CURRENT_BINARY_DIR}/testfile.txt)
+                ${CMAKE_SOURCE_DIR}/TestFileSamples/testfile.bin
+                ${CMAKE_CURRENT_BINARY_DIR}/testfile.bin)
 
 
                
