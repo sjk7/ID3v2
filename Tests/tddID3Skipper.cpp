@@ -51,7 +51,7 @@ TEST_CASE("Test ID3Skipper on known good file") {
     cout << "Audio starts at position: " << pos << endl;
     REQUIRE(pos == myInfo.MPEGStartPosition());
     std::string mpegData;
-    auto got = dr.readInto(mpegData, myInfo.MPEGSize());
+    auto got = dr.readInto(mpegData, (size_t)myInfo.MPEGSize());
     REQUIRE(got == myInfo.MPEGSize());
 
     // const auto szPrint = std::min(mpegData.size(), size_t(150));

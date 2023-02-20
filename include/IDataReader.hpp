@@ -10,7 +10,7 @@
 #include <string>
 
 namespace my {
-using size_type = typename std::string::size_type;
+using size_type = uintmax_t;
 struct IDataReader {
     virtual std::streamsize getSize(bool refresh = false) const noexcept = 0;
     virtual std::streampos getPos(bool refresh = false) const noexcept = 0;

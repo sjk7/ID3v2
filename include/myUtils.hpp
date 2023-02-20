@@ -68,8 +68,8 @@ namespace strings {
         char* d = &sv[0];
         for (auto i = 0; i < (int)sv.size(); ++i) {
             unsigned char* c = (unsigned char*)&d[i];
-            *c += ((unsigned char)(*c) - (unsigned char)('A') < (uint8_t)26U) << (uint8_t)5U; /* lowercase */
-
+            *c += ((unsigned char)(*c) - (unsigned char)('A') < (uint8_t)26U)
+                << (uint8_t)5U; /* lowercase */
         }
         return d;
     }
@@ -452,7 +452,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
         if (myfail) throw e;
         // std::cerr << "Errno is: " << errno << std::endl;
         file_check_error_bits(f);
-        ret = f.gcount();
+        ret = (ptrdiff_t)f.gcount();
         if (f.eof()) {
             std::string serr;
             strings::cat(serr, std::string{"File, with path:\n"},
@@ -468,7 +468,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
 
     // Do this in case some nob turned off the stream exceptions.
     if (f.bad() || f.fail()) {
-        ret = f.gcount();
+        ret = (ptrdiff_t)f.gcount();
         if (ret >= 0) dest.resize(ret);
         // if we read *something, and it's eof() then NO exception
         if (ret > 0 && f.eof()) return ret;
@@ -535,7 +535,8 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
 }
 
 [[maybe_unused]] static inline std::system_error file_open(std::fstream& f,
-    const std::string& file_path, std::ios_base::openmode mode = std::ios::in | std::ios::binary,
+    const std::string& file_path,
+    std::ios_base::openmode mode = std::ios::in | std::ios::binary,
     bool throw_on_fail = true) {
 
     fs::path p = file_path;
@@ -566,7 +567,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
     std::fstream& f, std::string& data, bool close_when_done = true) {
     data.clear();
     bool ok = false;
-    auto sz = file_get_size(f, ok);
+    size_t sz = (size_t)file_get_size(f, ok);
     data.resize(sz);
     assert(data.size() == sz);
     f.read(&data[0], sz);
