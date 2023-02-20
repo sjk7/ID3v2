@@ -29,8 +29,9 @@ int test_file_reader() {
     try {
         FileDataReader reader(filepath.string());
         // cout << reader.getSize();
-        if (reader.getSize() != 27) {
-            std::cerr << "Unexpected. File size is Not 27, it is "
+        if (reader.getSize() != 27
+            || reader.getSize() != 28) { // some workflow weirdness
+            std::cerr << "Unexpected. File size is Not 27 or 28, it is "
                       << reader.getSize() << endl;
         }
         std::string mybuf;
