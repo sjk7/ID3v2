@@ -29,8 +29,10 @@ int test_file_reader() {
     try {
         FileDataReader reader(filepath.string());
         // cout << reader.getSize();
-        if (reader.getSize() != 27
-            || reader.getSize() != 28) { // some workflow weirdness
+        if (reader.getSize() == 27
+            || reader.getSize() == 28) { // some workflow weirdness
+
+        } else {
             std::cerr << "Unexpected. File size is Not 27 or 28, it is "
                       << reader.getSize() << endl;
         }
@@ -80,8 +82,8 @@ int test_file_reader() {
             // cout << "Correctly caught " << e.what() << endl;
             thrown = true;
             auto posNow = reader.getPos();
-            if (posNow != 27) {
-                cerr << "Unexpected: file pos ought to be 27 hr, but it is: "
+            if (posNow != reader.getSize()) {
+                cerr << "Unexpected: file pos ought to be right at eof here: "
                      << posNow << endl;
                 return -88;
             }
