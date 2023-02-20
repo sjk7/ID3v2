@@ -36,6 +36,7 @@ add_test(NAME ReadValidHeaderTag COMMAND ReadValidTagHeader)
 add_test(NAME ID3Skipper COMMAND TestID3Skipper)
 add_test(NAME TagReadAll COMMAND TagReader)
 
+
 add_custom_command(
         TARGET ID3HeaderApp PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
