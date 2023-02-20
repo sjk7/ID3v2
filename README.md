@@ -1,4 +1,4 @@
-# ID3v2
+# ID3v2 Tag Reader In Modern C++ For All Major Platforms.
 
 Read ID3v2.3 (and Id3v1) Tags in mp3 audio files.
 For Windows, Linux and MacOS.
