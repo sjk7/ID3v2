@@ -15,7 +15,21 @@ jobs:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
     # You can convert this to a matrix build if you need cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2022
+          - ubuntu-22.04
+          - macos-12
+        compiler:
+          - llvm
+          - gcc
+          # you can specify the version after `-` like `llvm-13.0.0`.
+        include:
+          - os: "windows-2022"
+            compiler: "msvc"
 
     steps:
     - uses: actions/checkout@v3
