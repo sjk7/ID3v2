@@ -9,6 +9,7 @@
 #include "myUtils.hpp"
 #include <bitset>
 #include <unordered_map>
+#include <cstring> // memcpy
 
 namespace ID3v2
 {
@@ -403,7 +404,8 @@ static inline TagHeaderEx parseHeader(my::IDataReader &dr, const std::string &fi
     const auto data = dr.read(10);
     if (data.size() == 10)
     {
-        memcpy(&ret, data.data(), TAG_HEADER_SIZE);
+        auto ptr = (TagHeader*)&ret;
+        memcpy(ptr, data.data(), TAG_HEADER_SIZE);
         ret.validity = verifyTag(ret);
         if (ret.validity == verifyTagResult::OK)
         {

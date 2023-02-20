@@ -29,7 +29,11 @@
 #ifdef _WIN32
 namespace fs = std::filesystem;
 #else
+#ifdef __linux__
+namespace fs = std::filesystem;
+#else
 namespace fs = std::__fs::filesystem;
+#endif
 #endif
 
 #if __cplusplus > 201703L
@@ -64,9 +68,8 @@ namespace strings {
         char* d = &sv[0];
         for (auto i = 0; i < (int)sv.size(); ++i) {
             unsigned char* c = (unsigned char*)&d[i];
-            *c += (*c - 'A' < 26U) << 5; /* lowercase */
-            //*c -= (*c-'a'<26U)<<5; /* uppercase */
-            //*c ^= ((*c|32U)-'a'<26)<<5; /* toggle case */
+            *c += ((unsigned char)(*c) - (unsigned char)('A') < (uint8_t)26U) << (uint8_t)5U; /* lowercase */
+
         }
         return d;
     }
@@ -75,7 +78,7 @@ namespace strings {
         char* d = &sv[0];
         for (auto i = 0; i < (int)sv.size(); ++i) {
             // d[i] -= 32 * (d[i] >= 'a' && d[i] <= 'z');
-            d[i] -= ((unsigned char)d[i] - 'a' < 26U) << 5;
+            d[i] -= ((unsigned char)d[i] - 'a' < (uint8_t)26U) << (uint8_t)5;
 
             //*c += (*c-'A'<26U)<<5; /* lowercase */
             //*c -= (*c-'a'<26U)<<5; /* uppercase */
@@ -532,7 +535,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
 }
 
 [[maybe_unused]] static inline std::system_error file_open(std::fstream& f,
-    const std::string& file_path, int mode = std::ios::in | std::ios::binary,
+    const std::string& file_path, std::ios_base::openmode mode = std::ios::in | std::ios::binary,
     bool throw_on_fail = true) {
 
     fs::path p = file_path;
@@ -571,7 +574,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
 }
 [[maybe_unused]] static inline std::system_error file_open_and_read_all(
     const std::string& filepath, std::string& data,
-    int flags = std::ios::in | std::ios::binary) {
+    const std::ios_base::openmode flags = std::ios::in | std::ios::binary) {
     std::fstream f;
     auto e = file_open(f, filepath, flags, true);
     if (e.code() == std::error_code()) {

@@ -91,5 +91,6 @@
         "set": "cpp",
         "span": "cpp",
         "unordered_set": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "${workspaceFolder}/."
 }

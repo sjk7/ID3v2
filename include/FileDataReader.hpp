@@ -80,10 +80,10 @@ struct FileDataReader : IDataReader {
 
     // throws system_error on failure, hopefully with a meaningful message.
     FileDataReader(const std::string& filePath,
-        unsigned int openFlags = std::ios::in | std::ios::binary)
+        const std::ios_base::openmode openFlags = std::ios::in | std::ios::binary)
         : m_filePath(filePath) {
         utils::file_open(m_f, filePath, openFlags, true);
-        m_f.exceptions(0);
+        m_f.exceptions(std::ios_base::iostate(0));
         m_f.clear();
     }
 
