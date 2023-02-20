@@ -83,11 +83,10 @@ TEST_CASE("Checking file behaviours") {
     {
         std::fstream f;
         try {
-            std::string testFilePath
-                = utils::find_file_up("testfile.txt", "ID3v2");
+            auto testFilePath = utils::find_file_up("testfile.txt", "ID3v2");
             REQUIRE(!testFilePath.empty());
 
-            utils::file_open(f, testFilePath);
+            utils::file_open(f, testFilePath.string());
 
             REQUIRE(f.is_open());
             std::string data;

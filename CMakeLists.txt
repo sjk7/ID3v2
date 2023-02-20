@@ -12,7 +12,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists.txt)
 
 
 enable_testing()
-add_executable(ID3HeaderApp "src/main.cpp" include/myUtils.hpp include/ID3v2.hpp include/FileDataReader.hpp include/IDataReader.hpp)
+add_executable(ID3HeaderApp "Tests/tddTagReader.cpp" include/myUtils.hpp include/ID3v2.hpp include/FileDataReader.hpp include/IDataReader.hpp)
 
 #install(TARGETS ID3HeaderApp
 #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -27,12 +27,14 @@ include/FileDataReader.hpp include/IDataReader.hpp)
 
 add_executable(ReadValidTagHeader Tests/tddReadValidTagHeader.cpp include/ID3v2.hpp)
 add_executable(TestID3Skipper Tests/tddID3Skipper.cpp)
+add_executable(TagReader Tests/tddTagReader.cpp)
 
 add_test(NAME TestFile COMMAND tddfile)
 add_test(NAME FileReader COMMAND tddFileReader)
 add_test(NAME TestBadHeader COMMAND BadID3HeaderTest)
 add_test(NAME ReadValidHeaderTag COMMAND ReadValidTagHeader)
 add_test(NAME ID3Skipper COMMAND TestID3Skipper)
+add_test(NAME TagReadAll COMMAND TagReader)
 
 add_custom_command(
         TARGET ID3HeaderApp PRE_BUILD

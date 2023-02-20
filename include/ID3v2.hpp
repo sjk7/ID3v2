@@ -329,8 +329,10 @@ static inline verifyTagResult verifyTag(TagHeaderEx& h) {
 }
 
 static inline uint32_t getTagSize(uint32_t szInd) {
-    auto sz = swapEndian(szInd); // v2.3: not synch safe
-    return sz;
+    auto sz = swapEndian(
+        szInd); // v2.3: for the tag, it's sync safe (probably!) lol
+    auto ret = decodeSynchSafe(sz);
+    return ret;
 }
 
 static inline TagHeaderEx parseHeader(
@@ -547,6 +549,7 @@ struct CommentsFrame : AbstractFrame {
         /*/
         // clang-format on
         const auto& s = h.AllData();
+        this->m_suid = h.IDString();
         this->textEncoding = static_cast<TextEncodingType>(*s.begin());
 
         const auto nNulls
@@ -574,7 +577,6 @@ struct CommentsFrame : AbstractFrame {
         m_lang = s.substr(1, 3);
         m_description = s.substr(4, found);
         this->payLoad = s.substr(found + nNulls);
-        this->m_suid = h.IDString();
     }
     virtual ~CommentsFrame() = default;
     std::string m_description;
@@ -662,9 +664,10 @@ struct PictureFrame : AbstractFrame {
         this->description = s.substr(pos, len_desc); // can be zero length
         pos += description.size() + nNulls; // there is a null after description
         this->payLoad = s.substr(pos);
-        std::fstream f("ffs.png", std::ios::out | std::ios::binary);
-        f.write(this->payLoad.data(), this->payLoad.size());
-        f.close();
+        this->m_suid = "APIC:" + std::to_string(pictureType);
+        // std::fstream f("ffs.png", std::ios::out | std::ios::binary);
+        // f.write(this->payLoad.data(), this->payLoad.size());
+        // f.close();
     }
     virtual ~PictureFrame() = default;
     int pictureType = 0;

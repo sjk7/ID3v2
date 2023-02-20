@@ -482,7 +482,7 @@ static inline std::ptrdiff_t file_read_some(BUFFER& dest, std::fstream& f,
 
 // find a file in local path or in a parent dir, and stop on stop_folder
 // In just the same way clang-format looks for his file.
-[[maybe_unused]] static inline std::string find_file_up(
+[[maybe_unused]] static inline fs::path find_file_up(
     const std::string& file_to_find, const std::string& stop_folder) {
 
     using std::cout;

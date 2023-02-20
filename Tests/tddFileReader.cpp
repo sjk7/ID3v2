@@ -22,13 +22,12 @@ using namespace utils;
 
 using namespace std;
 using namespace my;
-int tdd_file();
 
 int test_file_reader() {
     const auto filepath = utils::find_file_up("testfile.txt", "ID3v2");
     assert(!filepath.empty());
     try {
-        FileDataReader reader(filepath);
+        FileDataReader reader(filepath.string());
         // cout << reader.getSize();
         if (reader.getSize() != 27) {
             std::cerr << "Unexpected. File size is 27" << endl;

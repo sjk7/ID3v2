@@ -45,7 +45,7 @@ int test_invalid_id3v2_headers() {
         assert("testfile.txt cannot be found, cannot continue" == nullptr);
         return -1;
     }
-    my::FileDataReader myReader(fn);
+    my::FileDataReader myReader(fn.string());
     bool threw = false;
 
     try {

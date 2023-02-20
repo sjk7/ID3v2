@@ -19,8 +19,8 @@ TEST_CASE("Test ID3Skipper on known bad file") {
 
     try {
 
-        ID3v2::ID3v2Skipper skipper(
-            filePath, [&myInfo](my::FileDataReader&, ID3v2::ID3FileInfo& info) {
+        ID3v2::ID3v2Skipper skipper(filePath.string(),
+            [&myInfo](my::FileDataReader&, ID3v2::ID3FileInfo& info) {
                 cout << "Header size is:" << info.Tag().dataSizeInBytes << endl;
                 myInfo = info;
             });
@@ -40,8 +40,8 @@ TEST_CASE("Test ID3Skipper on known good file") {
 
     ID3v2::ID3FileInfo myInfo = {};
 
-    ID3v2::ID3v2Skipper skipper(
-        filePath, [&myInfo](my::FileDataReader&, ID3v2::ID3FileInfo& info) {
+    ID3v2::ID3v2Skipper skipper(filePath.string(),
+        [&myInfo](my::FileDataReader&, ID3v2::ID3FileInfo& info) {
             cout << "Header size is:" << info.Tag().dataSizeInBytes << endl;
             myInfo = info;
         });
@@ -54,9 +54,9 @@ TEST_CASE("Test ID3Skipper on known good file") {
     auto got = dr.readInto(mpegData, myInfo.MPEGSize());
     REQUIRE(got == myInfo.MPEGSize());
 
-    const auto szPrint = std::min(mpegData.size(), size_t(150));
-    cout << "Here's some mpeg data (could be padding thou) ... \n\n"
-         << mpegData.substr(0, szPrint) << std::endl;
+    // const auto szPrint = std::min(mpegData.size(), size_t(150));
+    //  cout << "Here's some mpeg data (could be padding thou) ... \n\n"
+    //       << mpegData.substr(0, szPrint) << std::endl;
     unsigned char c1 = mpegData[0];
     unsigned char c2 = mpegData[1];
     cout << "First two bytes are " << (int)c1 << " " << (int)c2 << endl;

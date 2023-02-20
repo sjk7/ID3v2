@@ -18,8 +18,8 @@ int read_valid_header() {
     const auto fileName = utils::find_file_up("sample.mp3", "ID3v2");
     assert(!fileName.empty());
     cout << "Mp3 file located at: " << fileName << endl;
-    my::FileDataReader fdr(fileName);
-    auto tag = ID3v2::parseHeader(fdr, fileName);
+    my::FileDataReader fdr(fileName.string());
+    auto tag = ID3v2::parseHeader(fdr, fileName.string());
     if (tag.validity != ID3v2::verifyTagResult::OK) {
         cerr << "No. Expected a valid tag here" << endl;
         return -90;
