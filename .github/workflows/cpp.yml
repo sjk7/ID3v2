@@ -1,0 +1,15 @@
+name: learn-github-actions
+on: [push]
+jobs:
+  check-bats-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: "create and enter build dir"
+        run: |
+          mkdir build
+          cd build
+      - name: "run cmake "
+        run: cmake ..
+      - name: "run make " 
+        run: make 
