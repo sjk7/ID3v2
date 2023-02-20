@@ -72,6 +72,7 @@ void ParseAllInKnownGood(const std::string& fileName) {
 
     using std::cout;
     using std::endl;
+    using std::wcout;
     const auto filePath = utils::find_file_up(fileName, "ID3v2");
     REQUIRE_MESSAGE(!filePath.empty(), fileName + " needed for this test");
     ID3v2::TagCollection collection(filePath.u8string());
@@ -81,16 +82,25 @@ void ParseAllInKnownGood(const std::string& fileName) {
     cout << "----------------- All Tag Data in " << filePath.stem()
          << "-----------------\n\n";
 
+    
     for (const auto& tag : tags) {
         const auto& ptr = tag.second;
         std::string rep = ptr->PayLoad();
+        // 
+        const auto unicode = ptr->textEncoding;
         std::string uid = ptr->uid();
         if (uid.substr(0, 4) == "APIC") {
             rep = "<Image Data>";
         }
 
         cout << "tag: "
-             << "uid: " << uid << " data: " << rep << endl;
+             << "uid: " << uid;
+        if (unicode == ID3v2::TextEncodingType::unicode_with_bom){
+            cout << " *********** UNICODE VALUE *************" << endl;
+            rep = rep.substr(2);
+        }
+        stripUnicode(rep);
+        cout << rep << endl;
     }
     cout << "\n\n" << endl;
 }
