@@ -1,0 +1,66 @@
+## ID3v2 notes
+
+Specs can be found at http://id3lib.sourceforge.net/id3/develop.html
+
+Tag size is always a 4 byte synch safe big endian integer and unsynchronization does not affect it.
+
+##### v2.2
+
+Frame have 3 byte type.  
+Frame size is 3 bytes big endian integer (not synch safe).  
+Unsynchronization flag in tag header is for whole id3 tag.  
+
+##### v2.3
+
+Frame have 4 byte type.  
+Frame size is 4 bytes big endian integer (not synch safe).  
+Unsynchronization flag in tag header is for whole id3 tag.  
+Optional extended header not compat with v2.4.  
+Extended header size is 4 byte big endian (not sync safe).  
+Extended header size is header excluding size field bytes.  
+
+##### v2.4
+
+Frame have 4 byte type.  
+Frame size is 4 bytes synch safe big endian integer.  
+Unsynchronization flag in tag header is for whole id3 tag but if false individual frames can set a frame header unsynchronization flag.  
+Optional extended header not compat with v2.3.  
+Extended header size is 4 bytes synch safe big endian integer.  
+Extended header size is whole header including size field bytes.  
+
+##### Unsynchronization
+  
+Done before reading the id3 tag or after if writing a id3 tag.
+
+Encode: 0xffe? -> 0xff00e?  
+Decode: 0xff00 -> 0xff0000 (to preserve them) then replace 0xff00 -> 0xff
+
+##### Text encoding
+
+$00 ISO-8859-1 terminated with \x00  
+$01 UTF-16 with BOM terminated with aligned \x00\x00  
+$02 UTF-16BE without BOM terminated with aligned \x00\x00 (new in v2.4)  
+$03 UTF-8 terminated with \x00 (new in v2.4)  
+
+##### Description/Text frames (COMM, ULT, ...)
+
+Separator uses the text encoding terminator. ISO-8851 and UTF-8 uses \x00, UTF-16 uses \x00\x00 that needs to be aligned correctly (A\x00\x00\x00B\x00 -> "A\x00" "B\x00" not "A" "\x00B\x00").  
+For UTF-16 (not UTF-16BE where byte order is already specified) a BOM is needed but in reality it seems to be missing quite often. Best guess seems to be that UTF-16 should be little endian.
+
+https://github.com/krists/id3tag does terminator splitting by just convert the whole raw bytes including both parts to UTF-8 and then always split on \0 
+
+##### Padding
+
+TODO: verify
+
+Tag size is including optional extended header + frames + padding bytes.  
+v3 extended header has a padding size field that incidate how many padding bytes there are after the last frame (this could also be derived by calculating tag size field - extended header size - frame sizes?).  
+v4 extended header does not have this padding size field (derive instead?).  
+
+Padding bytes should always be zero in v3 and v4.
+
+
+
+
+
+
