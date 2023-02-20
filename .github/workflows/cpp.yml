@@ -1,15 +1,244 @@
-name: learn-github-actions
-on: [push]
+name: ci
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
 jobs:
-  check-bats-version:
-    runs-on: ubuntu-latest
+  Test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2022
+          - ubuntu-22.04
+          - macos-12
+        compiler:
+          - llvm
+          - gcc
+          # you can specify the version after `-` like `llvm-13.0.0`.
+        include:
+          - os: "windows-2022"
+            compiler: "msvc"
     steps:
-      - uses: actions/checkout@v2
-      - name: "create and enter build dir"
+      - uses: actions/checkout@v3
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/vcpkg
+            ./build/vcpkg_installed
+            ${{ env.HOME }}/.cache/vcpkg/archives
+            ${{ env.XDG_CACHE_HOME }}/vcpkg/archives
+            ${{ env.LOCALAPPDATA }}\vcpkg\archives
+            ${{ env.APPDATA }}\vcpkg\archives
+          key: ${{ runner.os }}-${{ matrix.compiler }}-${{ env.BUILD_TYPE }}-${{ hashFiles('**/CMakeLists.txt') }}-${{ hashFiles('./vcpkg.json')}}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.BUILD_TYPE }}-
+
+      - name: Setup Cpp
+        uses: aminya/setup-cpp@v1
+        with:
+          compiler: ${{ matrix.compiler }}
+          vcvarsall: ${{ contains(matrix.os, 'windows') }}
+          cmake: true
+          ninja: true
+          vcpkg: true
+          cppcheck: true
+          clangtidy: true # instead of `true`, which chooses the default version, you can pass a specific version.
+          # ...
+
+Inside Docker
+
+Here is an example for using setup-cpp to make a builder image that has the Cpp tools you need.
+
+#### Base Image
+FROM ubuntu:22.04 AS base
+
+# add setup-cpp
+RUN apt-get update -qq
+RUN apt-get install -y --no-install-recommends npm
+RUN npm install -g setup-cpp
+
+# install llvm, cmake, ninja, and ccache
+RUN setup-cpp --compiler llvm --cmake true --ninja true --ccache true --vcpkg true --make true
+
+CMD source ~/.cpprc
+ENTRYPOINT [ "/bin/bash" ]
+
+#### Building
+FROM base AS builder
+ADD ./dev/cpp_vcpkg_project /home/app
+WORKDIR /home/app
+RUN bash -c 'source ~/.cpprc \
+    && make build'
+
+### Running environment
+# use a distroless image or ubuntu:22.04 if you wish
+FROM gcr.io/distroless/cc
+# copy the built binaries and their runtime dependencies
+COPY --from=builder /home/app/build/my_exe/Release/ /home/app/
+WORKDIR /home/app/
+ENTRYPOINT ["./my_exe"]
+
+See this folder, for some dockerfile examples.
+
+If you want to build the ones included, then run:
+
+git clone --recurse-submodules https://github.com/aminya/setup-cpp
+cd ./setup-cpp
+docker build -f ./dev/docker/ubuntu.dockerfile -t setup-cpp .
+
+Where you should use the path to the dockerfile after -f.
+
+After build, run the following to start an interactive shell in your container
+
+docker run -it setup-cpp
+
+Inside Docker inside GitHub Actions
+
+You can use the docker file discussed in the previous section inside GitHub Actions like the following:
+
+jobs:
+  Docker:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        id: docker_build
         run: |
-          mkdir build
-          cd build
-      - name: "run cmake "
-        run: cmake ..
-      - name: "run make " 
-        run: make 
+          docker build -f ./dev/docker/debian.dockerfile -t setup-cpp .
+
+Inside GitLab pipelines
+
+The following gives an example for setting up a C++ environment inside GitLab pipelines.
+
+.gitlab-ci.yaml
+
+image: ubuntu:22.04
+
+stages:
+  - test
+
+.setup_linux: &setup_linux |
+  DEBIAN_FRONTEND=noninteractive
+
+  # set time-zone
+  TZ=Canada/Pacific
+  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+  # for downloading
+  apt-get update -qq
+  apt-get install -y --no-install-recommends curl gnupg ca-certificates
+
+  # keys used by apt
+  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32
+  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 40976EAF437D05B5
+  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1E9377A2BA9EF27F
+
+.setup-cpp: &setup-cpp |
+  curl -LJO "https://github.com/aminya/setup-cpp/releases/download/v0.26.2/setup-cpp-x64-linux"
+  chmod +x setup-cpp-x64-linux
+  ./setup-cpp-x64-linux --compiler $compiler --cmake true --ninja true --ccache true --vcpkg true
+  source ~/.cpprc
+
+.test: &test |
+  # Build and Test
+  # ...
+
+test_linux_llvm:
+  stage: test
+  variables:
+    compiler: llvm
+  script:
+    - *setup_linux
+    - *setup-cpp
+    - *test
+
+test_linux_gcc:
+  stage: test
+  variables:
+    compiler: gcc
+  script:
+    - *setup_linux
+    - *setup-cpp
+    - *test
+
+Articles
+
+Setup-Cpp on Dev.to
+Usage Examples
+
+    cpp_vcpkg_project project
+    project_options
+    cpp-best-practices starter project
+    ftxui
+    inja
+    teslamotors/fixed-containers
+    zeromq.js
+    json2cpp
+    lefticus/tools
+    watcher
+    pinpoint-c-agent
+    dpp
+    DSpellCheck
+    simdjson-rust
+    CXXIter
+    git-tui
+    supercell
+    libclang
+    d-tree-sitter
+    atom-community/papm
+    ecs_benchmark
+    smk
+
+See all of the usage examples on GitHub here.
+About
+
+Install all the tools required for building and testing C++/C projects.
+Topics
+docker package-manager cmake install cpp llvm ninja gcc bazel clang doxygen conan mingw cppcheck msvc hacktoberfest meson gcovr ccache github-actions
+Resources
+Readme
+License
+Apache-2.0 license
+Stars
+103 stars
+Watchers
+4 watching
+Forks
+20 forks
+Releases 56
+v0.26.2 Latest
+Jan 20, 2023
++ 55 releases
+Sponsor this project
+
+    @aminya
+    aminya Amin Yahyaabadi 
+
+    patreon patreon.com/aminya
+
+Learn more about GitHub Sponsors
+Packages
+No packages published
+Contributors 5
+
+    @aminya
+    @abeimler
+    @Wihmajster
+    @lefticus
+    @StevenvdSchoot
+
+Languages
+
+TypeScript 86.6%
+JavaScript 9.7%
+Docke
