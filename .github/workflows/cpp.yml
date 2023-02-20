@@ -49,5 +49,8 @@ jobs:
           vcpkg: true
           cppcheck: true
           clangtidy: true # instead of `true`, which chooses the default version, you can pass a specific version.
-          # ...
+          mkdir build && cd build
+          cmake ../
+          make
+          ctest
 
