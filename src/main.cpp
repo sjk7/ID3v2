@@ -56,7 +56,25 @@ void ParseKnownGood(const std::string& fileName) {
     REQUIRE(!thrown);
 }
 
+void ParseAllInKnownGood(const std::string& fileName) {
+    const auto filePath = utils::find_file_up(fileName, "ID3v2");
+    REQUIRE_MESSAGE(!filePath.empty(), fileName + " needed for this test");
+    ID3v2::TagCollection collection(filePath);
+    REQUIRE(collection.Tags().size() > 0);
+}
+
 TEST_CASE("DumpGoodFilesOutput") {
+
+    SECTION("Parse all unicode tags in good sample file") {
+        ParseAllInKnownGood("unicode-sample.mp3");
+    }
+
+    SECTION("Parse all tags in good sample file") {
+        ParseAllInKnownGood("sample.mp3");
+    }
+    SECTION("Parse all tags in good sample file") {
+        ParseAllInKnownGood("sampleSAVEDINDPS.mp3");
+    }
 
     SECTION("Known good file: sample.mp3") {
         ParseKnownGood("sample.mp3");

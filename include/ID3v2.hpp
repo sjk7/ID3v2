@@ -8,26 +8,19 @@
 #include "FileDataReader.hpp"
 #include "myUtils.hpp"
 #include <bitset>
+#include <unordered_map>
 
 namespace ID3v2 {
 
 using uchar = unsigned char;
 template <size_t SZ> using bytearray = std::array<uchar, SZ>;
 
-template <typename T> void swapEndian(T& val) {
-    union U {
-        T val;
-        std::array<std::uint8_t, sizeof(T)> raw;
-    } src, dst;
-
-    src.val = val;
-    std::reverse_copy(src.raw.begin(), src.raw.end(), dst.raw.begin());
-    val = dst.val;
-}
-
-template <> void swapEndian<std::uint32_t>(std::uint32_t& value) {
-    std::uint32_t tmp = ((value << 8) & 0xFF00FF00) | ((value >> 8) & 0xFF00FF);
-    value = (tmp << 16) | (tmp >> 16);
+static inline uint32_t swapEndian(std::uint32_t num) {
+    uint32_t swapped = ((num >> 24) & 0xff) | // move byte 3 to byte 0
+        ((num << 8) & 0xff0000) | // move byte 1 to byte 2
+        ((num >> 8) & 0xff00) | // move byte 2 to byte 1
+        ((num << 24) & 0xff000000); // byte 0 to byte 3
+    return swapped;
 }
 static inline uint32_t decodeSynchSafe(uint32_t size) {
     size = (size & 0x0000007F) | ((size & 0x00007F00) >> 1)
@@ -87,16 +80,6 @@ static_assert(sizeof(ID3v1Tag) == 128);
 static constexpr std::streamsize ID3V1_TAG_SIZE = 128;
 #pragma pack(pop)
 
-struct AbstractFrame {
-    FrameHeader hdr;
-    std::string data;
-    std::string& allData() noexcept { return data; }
-};
-using ptrBase = std::unique_ptr<AbstractFrame>;
-
-struct TextFrame : AbstractFrame {};
-struct CommentsFrame : TextFrame {};
-
 namespace detail {
     static bool IsFrameHeaderIDValid(const FrameHeader& f) {
 
@@ -105,12 +88,12 @@ namespace detail {
             const char c = f.frameID[i++];
             // std::cout << (c);
             if (i > 2) {
-                if (!std::isalnum(c)) {
+                if (!std::isalnum(static_cast<unsigned char>(c))) {
                     return false;
                 }
             } else {
 
-                if (!std::isalpha(c)) {
+                if (!std::isalpha(static_cast<unsigned char>(c))) {
                     return false;
                 }
             }
@@ -269,7 +252,7 @@ struct FrameHeaderEx : FrameHeader {
     }
     size_t SizeInBytes(bool includingHeader = false) {
         if (sizeInBytes == 0) {
-            sizeInBytes = GetFrameSize(*this);
+            sizeInBytes = GetFrameSize((FrameHeader) * this);
         }
         assert(m_info.TotalFileSize());
         if (sizeInBytes > m_info.TotalFileSize()) {
@@ -300,10 +283,16 @@ struct FrameHeaderEx : FrameHeader {
         return allData.size();
     }
 
-    static inline size_t GetFrameSize(const FrameHeader& hdr) {
+    // non syncsafe in 2.3, synchsafe in 2.4
+    static inline size_t GetFrameSize(
+        const FrameHeader& hdr, bool syncsafe = false) {
         auto sz = hdr.sizeIndicator;
-        swapEndian(sz);
-        return decodeSynchSafe(sz);
+        sz = swapEndian(sz);
+        if (syncsafe) {
+            const auto ret = decodeSynchSafe(sz);
+            return ret;
+        }
+        return sz;
     }
 
     const std::string& AllData() const noexcept { return allData; }
@@ -339,9 +328,8 @@ static inline verifyTagResult verifyTag(TagHeaderEx& h) {
     return verifyTagResult::OK;
 }
 
-static inline uint32_t getTagSize(uint32_t sz) {
-    swapEndian(sz);
-    sz = decodeSynchSafe(sz);
+static inline uint32_t getTagSize(uint32_t szInd) {
+    auto sz = swapEndian(szInd); // v2.3: not synch safe
     return sz;
 }
 
@@ -419,8 +407,9 @@ struct ID3v2Skipper {
     my::FileDataReader m_dr;
 };
 
+// populates the data in all the Tags; does not parse further.
+// Calls CB() with each frame.
 template <typename CB>
-
 static inline void FillTags(ID3FileInfo& info, my::IDataReader& dr, CB&& cb) {
 
     using std::cerr;
@@ -507,6 +496,248 @@ struct TagDataReader {
 
     my::FileDataReader m_dr;
     ID3v2::ID3FileInfo m_info = {};
+};
+
+enum class TextEncodingType { ansi, unicode_with_bom };
+
+struct AbstractFrame {
+    AbstractFrame(const FrameHeaderEx& h) : m_hdr(h) {
+        const auto& raw = h.AllData();
+        if (raw.empty()) throw std::runtime_error("Abstract Frame: no data");
+    }
+    virtual ~AbstractFrame() = default;
+    FrameHeader hdr{};
+    std::string data;
+    std::string& allData() noexcept { return data; }
+    FrameHeaderEx m_hdr;
+    TextEncodingType textEncoding = TextEncodingType::ansi;
+    // regardless of the type of tag, this is where we store the actual data
+    std::string payLoad;
+    const std::string& PayLoad() const noexcept { return payLoad; }
+    std::string m_suid;
+    virtual const std::string& uid() const noexcept { return m_suid; }
+    bool malFormed = false;
+};
+using ptrBase = std::unique_ptr<AbstractFrame>;
+
+struct TextFrame : AbstractFrame {
+    TextFrame(const FrameHeaderEx& h) : AbstractFrame(h) {
+        // clang-format off
+        /*/
+        <Header for 'Text information frame', ID: "T000" - "TZZZ", excluding "TXXX" 
+        Text encoding    $xx Information    <text string according to
+        encoding>
+        /*/
+        // clang-format on
+        textEncoding = static_cast<TextEncodingType>(*h.AllData().begin());
+        payLoad = h.AllData().substr(1, h.AllData().size() - 1);
+        this->m_suid = h.IDString();
+    }
+    virtual ~TextFrame() = default;
+};
+struct CommentsFrame : AbstractFrame {
+    CommentsFrame(const FrameHeaderEx& h) : AbstractFrame(h) {
+        // clang-format off
+        /*/
+        <Header for 'Comment', ID: "COMM">
+        0            Text encoding           $xx
+        123          Language                $xx xx xx
+        4->found     Short content descrip.  <text string according to encoding> $00 (00)
+        found+1->end The actual text         <full text string according to encoding>
+        /*/
+        // clang-format on
+        const auto& s = h.AllData();
+        this->textEncoding = static_cast<TextEncodingType>(*s.begin());
+
+        const auto nNulls
+            = this->textEncoding == TextEncodingType::ansi ? 1 : 2;
+        const std::string nullstr(nNulls, '\0');
+        const auto found = s.find(nullstr, 4);
+        if (found == std::string::npos) {
+            // DPS: no lang, no desc, just a null then some string, with no
+            // nulls in it
+            this->payLoad = s.substr(1);
+            if (std::all_of(this->payLoad.begin(), this->payLoad.end(),
+                    [](const char c) { return c != 0; })) {
+                this->malFormed = true;
+                return; // good enuf
+
+            } else {
+
+                this->payLoad.clear();
+                throw std::runtime_error(
+                    "CommentsFrame: no null found to indicate where the "
+                    "description ends and the text starts");
+            }
+        }
+
+        m_lang = s.substr(1, 3);
+        m_description = s.substr(4, found);
+        this->payLoad = s.substr(found + nNulls);
+        this->m_suid = h.IDString();
+    }
+    virtual ~CommentsFrame() = default;
+    std::string m_description;
+    std::string m_lang;
+    const std::string& contentDescription() const noexcept {
+        return m_description;
+    }
+    const std::string& language() const noexcept { return m_lang; }
+};
+
+struct UserTextFrame : AbstractFrame {
+
+    UserTextFrame(const FrameHeaderEx& h) : AbstractFrame(h) {
+        // clang-format off
+        /*/
+            <Header for 'User defined text information frame', ID: "TXXX">
+            0                       Text encoding    $xx
+            1->found                Description    <text string according to encoding> $00 (00)
+            found+nullSize, remain  Value    <text string according to encoding>
+        /*/
+        // clang-format on
+        const auto& s = h.AllData();
+        this->textEncoding = static_cast<TextEncodingType>(*s.begin());
+        const auto nNulls
+            = this->textEncoding == TextEncodingType::ansi ? 1 : 2;
+        const std::string nullstr(nNulls, '\0');
+
+        const auto found_null = s.find(nullstr, 1);
+        if (found_null == std::string::npos)
+            throw std::runtime_error("UserTextFrame: could not find separating "
+                                     "null between description and value");
+        m_description = s.substr(1, found_null);
+        this->payLoad = s.substr(found_null + 1);
+        this->m_suid = "TXXX:" + m_description;
+    }
+    virtual ~UserTextFrame() = default;
+
+    std::string m_description;
+    const std::string& contentDescription() const noexcept {
+        return m_description;
+    }
+};
+
+struct PictureFrame : AbstractFrame {
+
+    PictureFrame(const FrameHeaderEx& h) : AbstractFrame(h) {
+        // clang-format off
+       /*/
+       <Header for 'Attached picture', ID: "APIC">
+       0     Text encoding   $xx
+            MIME type       <text string> $00
+            Picture type    $xx
+            Description     <text string according to encoding> $00 (00)
+            Picture data    <binary data>
+        /*/
+        // clang-format on
+        const auto& s = h.AllData();
+        this->textEncoding = static_cast<TextEncodingType>(*s.begin());
+        int nNulls = 1; // encoding doesn't apply to mimetype
+
+        std::string nullstr(nNulls, '\0');
+        auto found_null = s.find(nullstr, 1);
+        if (found_null == std::string::npos) {
+            throw std::runtime_error("PictureFrame: cannot find null separator "
+                                     "between mime-type and picture-type.");
+        }
+        mimeType = s.substr(1, found_null);
+        if (s.size() < found_null + 1)
+            throw std::runtime_error("PictureFrame: not enough data");
+        pictureType = *(s.data() + found_null + 1);
+
+        nNulls = this->textEncoding == TextEncodingType::ansi ? 1 : 2;
+
+        nullstr = std::string(nNulls, '\0');
+        auto pos = found_null + 1;
+
+        found_null = s.find(nullstr, pos);
+        if (found_null == std::string::npos) {
+            throw std::runtime_error("PictureFrame: cannot find null separator "
+                                     "between description and data");
+        }
+        ++pos; // we found a null
+        const int len_desc = (int)(found_null - (pos)); // may be zero
+        assert(len_desc >= 0);
+        this->description = s.substr(pos, len_desc); // can be zero length
+        pos += description.size() + nNulls; // there is a null after description
+        this->payLoad = s.substr(pos);
+        std::fstream f("ffs.png", std::ios::out | std::ios::binary);
+        f.write(this->payLoad.data(), this->payLoad.size());
+        f.close();
+    }
+    virtual ~PictureFrame() = default;
+    int pictureType = 0;
+    std::string description;
+    std::string mimeType;
+};
+
+struct TagFactory {
+    static inline ptrBase MakeTextFrame(const FrameHeaderEx& h) {
+        ptrBase ret = std::make_unique<TextFrame>(h);
+        return ret;
+    }
+
+    static inline ptrBase MakeCommentsFrame(const FrameHeaderEx& h) {
+        ptrBase ret = std::make_unique<CommentsFrame>(h);
+        return ret;
+    }
+
+    static inline ptrBase MakeUserTextFrame(const FrameHeaderEx& h) {
+        ptrBase ret = std::make_unique<UserTextFrame>(h);
+        return ret;
+    }
+
+    static inline ptrBase MakePictureFrame(const FrameHeaderEx& h) {
+        ptrBase ret = std::make_unique<PictureFrame>(h);
+        return ret;
+    }
+};
+
+struct TagCollection {
+
+    using ContainerType = std::unordered_map<std::string, ptrBase>;
+
+    private:
+    ContainerType m_tags;
+    TagFactory Factory;
+    TagCollection() = default;
+
+    public:
+    TagCollection(const std::string& filepath) : TagCollection() {
+        TagDataReader rdr(filepath, [&](const FrameHeaderEx& h) {
+            bool handled = false;
+
+            if (h.frameID[0] == 'T') {
+                // Text or Comments Frame
+                if (h.IDString() == "TXXX") {
+                    auto ptr = TagFactory::MakeUserTextFrame(h);
+                    if (ptr) m_tags.insert({ptr->uid(), std::move(ptr)});
+                    handled = true;
+                } else {
+                    auto ptr = TagFactory::MakeTextFrame(h);
+                    if (ptr) m_tags.insert({ptr->uid(), std::move(ptr)});
+                    handled = true;
+                }
+            } else {
+
+                if (h.IDString() == "COMM") {
+                    auto ptr = TagFactory::MakeCommentsFrame(h);
+                    if (ptr) m_tags.insert({ptr->uid(), std::move(ptr)});
+                    handled = true;
+                } else {
+                    if (h.IDString() == "APIC") {
+                        auto ptr = TagFactory::MakePictureFrame(h);
+                        if (ptr) m_tags.insert({ptr->uid(), std::move(ptr)});
+                        handled = true;
+                    }
+                }
+            }
+        });
+    }
+    ~TagCollection() {}
+
+    const ContainerType& Tags() const noexcept { return m_tags; }
 };
 
 } // namespace ID3v2
