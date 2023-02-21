@@ -10,6 +10,7 @@
 #include <bitset>
 #include <cstring> // memcpy
 #include <unordered_map>
+#include "ID3v1Genres.hpp"
 
 namespace ID3v2 {
 
@@ -183,7 +184,16 @@ struct TagHeaderEx : TagHeader {
     std::string v1Year() const noexcept { return fromFixed(v1Tag.year); }
     std::string v1Album() const noexcept { return fromFixed(v1Tag.album); }
     std::string v1Comment() const noexcept { return fromFixed(v1Tag.comment); }
+<<<<<<< HEAD
     unsigned char v1Genre() const noexcept { return v1Tag.genre; }
+=======
+    std::string v1Genre() const noexcept {
+        const auto sz = ID3v1::GENRE_SIZE;
+        const auto n = v1Tag.genre;
+        if (n >= sz) return std::string{};
+        return ID3v1::genres[n];
+    }
+>>>>>>> 896f57f5e77d74530500f07e152a8fbbf1366a24
     int v1year() const noexcept { return std::atoi(v1Year().c_str()); }
 
     int v1Checked = -1;
@@ -635,12 +645,12 @@ struct UserTextFrame : AbstractFrame {
         const auto nNulls
             = this->textEncoding == TextEncodingType::ansi ? 1 : 2;
         const std::string nullstr(nNulls, '\0');
-
         const auto found_null = s.find(nullstr, 1);
+
         if (found_null == std::string::npos)
             throw std::runtime_error("UserTextFrame: could not find separating "
                                      "null between description and value");
-        m_description = s.substr(1, found_null);
+        this->m_description = s.substr(1, found_null - 1);
         this->payLoad = s.substr(found_null + 1);
         this->m_suid = "TXXX:" + m_description;
     }
@@ -775,6 +785,22 @@ struct TagCollection {
 
     const ContainerType& Tags() const noexcept { return m_tags; }
     ID3v2::ID3FileInfo info = {};
+
+    const std::string& tagFromID(const std::string& id) const noexcept {
+        const auto& f = m_tags.find(id);
+        if (f == m_tags.end()) return m_empty;
+        return f->second->PayLoad();
+    }
+    const std::string& Artist() const noexcept { return tagFromID("TPE1"); }
+    const std::string& Title() const noexcept { return tagFromID("TIT2"); }
+    const std::string& Album() const noexcept { return tagFromID("TALB"); }
+    const std::string& UserTag(const std::string id) const noexcept {
+        return tagFromID("TXXX:" + id);
+    }
+    const std::string& Comment() const noexcept { return tagFromID("TCOMM"); }
+
+    private:
+    static inline std::string m_empty;
 };
 
 } // namespace ID3v2
