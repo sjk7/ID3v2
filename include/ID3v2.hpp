@@ -683,31 +683,64 @@ struct PictureFrame : AbstractFrame {
         std::string nullstr(nNulls, '\0');
         auto found_null = s.find(nullstr, 1);
         if (found_null == std::string::npos) {
+            // some broken files: have 'image/jpegFront Cover' (no nulls), so
+            // check for this
+            static const std::vector<std::string> badOnes
+                = {{"image/jpegFront Cover"}, {"image/jpgFront Cover"}};
+
+            int ctr = 0;
+            for (const auto& bad : badOnes) {
+                const auto& found_bad = s.find(bad);
+                if (found_bad == 0) {
+                    if (s.size() == bad.size()) {
+                        throw std::runtime_error(
+                            "Only (bad) mime type and description, no room for "
+                            "data");
+                    }
+                    this->mimeType = "bad";
+                    this->description = "Front Cover";
+                    this->m_suid = "APIC:" + std::to_string(0);
+                    this->payLoad = s.substr(bad.size());
+                    if (ctr != 0) {
+                        std::cout << "ok" << std::endl;
+                    }
+                    this->malFormed = true;
+                    return;
+                }
+                ++ctr;
+            }
+
             throw std::runtime_error("PictureFrame: cannot find null separator "
                                      "between mime-type and picture-type.");
         }
-        mimeType = s.substr(1, found_null);
+        auto pos = found_null;
+        mimeType = s.substr(1, pos);
         if (s.size() < found_null + 1)
             throw std::runtime_error("PictureFrame: not enough data");
-        pictureType = *(s.data() + found_null + 1);
+        ++pos; // move on to picture type (12)
 
+        pictureType = *(s.data() + pos);
+        this->m_suid = "APIC:" + std::to_string(pictureType);
+        pos = found_null + 1; // where it was found + pictureType
         nNulls = this->textEncoding == TextEncodingType::ansi ? 1 : 2;
-
         nullstr = std::string(nNulls, '\0');
-        auto pos = found_null + 1;
+        pos += nNulls; // move on to where we expect to find description text,
+                       // and look for the next null
 
-        found_null = s.find(nullstr, pos);
-        if (found_null == std::string::npos) {
+        const auto desc_start = pos;
+        const auto desc_end = s.find(nullstr, pos);
+        if (desc_end == std::string::npos) {
             throw std::runtime_error("PictureFrame: cannot find null separator "
                                      "between description and data");
         }
-        ++pos; // we found a null
-        const int len_desc = (int)(found_null - (pos)); // may be zero
+
+        const int len_desc = (int)(desc_end - desc_start);
         assert(len_desc >= 0);
-        this->description = s.substr(pos, len_desc); // can be zero length
+        this->description
+            = s.substr(desc_start, len_desc); // can be zero length
         pos += description.size() + nNulls; // there is a null after description
         this->payLoad = s.substr(pos);
-        this->m_suid = "APIC:" + std::to_string(pictureType);
+
         // std::fstream f("ffs.png", std::ios::out | std::ios::binary);
         // f.write(this->payLoad.data(), this->payLoad.size());
         // f.close();

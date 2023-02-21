@@ -16,7 +16,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists.txt)
 
 enable_testing()
 add_executable(ID3HeaderApp "Tests/tddTagReader.cpp" include/myUtils.hpp include/ID3v2.hpp include/FileDataReader.hpp include/IDataReader.hpp)
-
+add_executable(WorkingMain "src/main.cpp" include/ID3v2.hpp include/myUtils.hpp)
 
 
 add_executable (tddfile Tests/tddfile.cpp include/myUtils.hpp)
