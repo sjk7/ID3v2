@@ -928,6 +928,37 @@ struct TagCollection
         return m_tags;
     }
     ID3v2::ID3FileInfo info = {};
+
+    const std::string &tagFromID(const std::string &id) const noexcept
+    {
+        const auto &f = m_tags.find(id);
+        if (f == m_tags.end())
+            return m_empty;
+        return f->second->PayLoad();
+    }
+    const std::string &Artist() const noexcept
+    {
+        return tagFromID("TPE1");
+    }
+    const std::string &Title() const noexcept
+    {
+        return tagFromID("TIT2");
+    }
+    const std::string &Album() const noexcept
+    {
+        return tagFromID("TALB");
+    }
+    const std::string &UserTag(const std::string id) const noexcept
+    {
+        return tagFromID("TXXX:" + id);
+    }
+    const std::string &Comment() const noexcept
+    {
+        return tagFromID("TCOMM");
+    }
+
+  private:
+    static inline std::string m_empty;
 };
 
 } // namespace ID3v2

@@ -147,6 +147,16 @@ cout << tit << endl;
         REQUIRE(comment == "");
         REQUIRE(yr == "2023");
         REQUIRE(nyear == 2023);
+        const auto v2Art = collection.Artist();
+        cout << v2Art << endl;
+        REQUIRE(v2Art == "This Is The Artist Field");
+        const auto v2Title = collection.Title();
+        cout << v2Title << endl;
+        REQUIRE(v2Title == "This Is The Title Field");
+
+        const auto v2Album = collection.Album();
+        cout << v2Album << endl;
+        REQUIRE(v2Album == "This is the album title");
    
     }else if (fileName == "BustedButReadableTag.mp3"){
         REQUIRE(art == "Twinkle");
@@ -155,9 +165,17 @@ cout << tit << endl;
         REQUIRE(comment == "");
         REQUIRE(nyear == 1964);
         REQUIRE(yr == "1964");
+        const auto v2Comment = collection.Comment();
+    
+        cout << v2Comment << endl;
+        const auto sec = collection.UserTag("Sec Tone");
+        cout << "Sectone is: " << sec << endl;
+        cout << endl;
     }else if (fileName == ""){
 
     }
+
+
 }
 
 TEST_CASE("DumpGoodFilesOutput")
