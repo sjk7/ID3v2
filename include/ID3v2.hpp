@@ -184,16 +184,14 @@ struct TagHeaderEx : TagHeader {
     std::string v1Year() const noexcept { return fromFixed(v1Tag.year); }
     std::string v1Album() const noexcept { return fromFixed(v1Tag.album); }
     std::string v1Comment() const noexcept { return fromFixed(v1Tag.comment); }
-<<<<<<< HEAD
-    unsigned char v1Genre() const noexcept { return v1Tag.genre; }
-=======
+
     std::string v1Genre() const noexcept {
         const auto sz = ID3v1::GENRE_SIZE;
         const auto n = v1Tag.genre;
         if (n >= sz) return std::string{};
         return ID3v1::genres[n];
     }
->>>>>>> 896f57f5e77d74530500f07e152a8fbbf1366a24
+
     int v1year() const noexcept { return std::atoi(v1Year().c_str()); }
 
     int v1Checked = -1;
@@ -561,6 +559,9 @@ struct AbstractFrame {
     const std::string& PayLoad() const noexcept { return payLoad; }
     std::string m_suid;
     virtual const std::string& uid() const noexcept { return m_suid; }
+    virtual bool IsMalformed() const noexcept { return malFormed; }
+
+    protected:
     bool malFormed = false;
 };
 using ptrBase = std::unique_ptr<AbstractFrame>;
@@ -751,30 +752,25 @@ struct TagCollection {
     public:
     TagCollection(const std::string& filepath) : TagCollection() {
         TagDataReader rdr(filepath, [&](const FrameHeaderEx& h) {
-            // bool handled = false;
-
             if (h.frameID[0] == 'T') {
                 // Text or Comments Frame
                 if (h.IDString() == "TXXX") {
                     auto ptr = TagFactory::MakeUserTextFrame(h);
-                    if (ptr) m_tags.insert({ptr->uid(), std::move(ptr)});
-                    // handled = true;
+                    conditionalInsert(ptr);
                 } else {
                     auto ptr = TagFactory::MakeTextFrame(h);
-                    if (ptr) m_tags.insert({ptr->uid(), std::move(ptr)});
-                    // handled = true;
+                    conditionalInsert(ptr);
                 }
             } else {
 
                 if (h.IDString() == "COMM") {
                     auto ptr = TagFactory::MakeCommentsFrame(h);
-                    if (ptr) m_tags.insert({ptr->uid(), std::move(ptr)});
-                    // handled = true;
+                    conditionalInsert(ptr);
+
                 } else {
                     if (h.IDString() == "APIC") {
                         auto ptr = TagFactory::MakePictureFrame(h);
-                        if (ptr) m_tags.insert({ptr->uid(), std::move(ptr)});
-                        // handled = true;
+                        conditionalInsert(ptr);
                     }
                 }
             }
@@ -797,10 +793,28 @@ struct TagCollection {
     const std::string& UserTag(const std::string id) const noexcept {
         return tagFromID("TXXX:" + id);
     }
-    const std::string& Comment() const noexcept { return tagFromID("TCOMM"); }
+    const std::string& Comment() const noexcept { return tagFromID("COMM"); }
 
     private:
     static inline std::string m_empty;
+
+    void conditionalInsert(ptrBase& tag) {
+
+        const auto& sid = tag->uid();
+        auto found = m_tags.find(sid);
+        if (found != m_tags.end()) {
+            const auto& old = found->second;
+            if (old->IsMalformed() && !tag->IsMalformed()) {
+                m_tags.erase(sid);
+                m_tags.insert({sid, std::move(tag)});
+            } else {
+                // how do we know which one to take?
+                // std::cerr << "Cannot decide " << std::endl;
+            }
+        } else {
+            m_tags.insert({sid, std::move(tag)});
+        }
+    }
 };
 
 } // namespace ID3v2

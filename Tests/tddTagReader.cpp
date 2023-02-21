@@ -28,12 +28,9 @@ TEST_CASE("ParseKnownBad") {
          << filePath << endl;
 }
 
-bool invalidChar(char c)
-{
-    if (std::isspace(static_cast<unsigned char>(c)))
-        return false;
-    if (c == ':')
-        return false;
+bool invalidChar(char c) {
+    if (std::isspace(static_cast<unsigned char>(c))) return false;
+    if (c == ':') return false;
     return !std::isalnum(static_cast<unsigned char>(c));
 }
 void stripUnicode(std::string& str) {
@@ -94,8 +91,7 @@ void ParseAllInKnownGood(const std::string& fileName) {
         const auto unicode = ptr->textEncoding;
         std::string uid = ptr->uid();
 
-        if (uid.substr(0, 4) == "APIC")
-        {
+        if (uid.substr(0, 4) == "APIC") {
             rep = "<Image Data>";
         }
 
@@ -108,6 +104,9 @@ void ParseAllInKnownGood(const std::string& fileName) {
         }
         stripUnicode(rep);
         cout << rep << endl;
+        if (ptr->IsMalformed()) {
+            cout << "NOTE: This tag appears to be malformed." << endl;
+        }
     }
     cout << "\n\n" << endl;
 
@@ -128,10 +127,8 @@ void ParseAllInKnownGood(const std::string& fileName) {
     cout << yr << endl;
     cout << comment << endl;
     cout << nyear << endl;
-    // cout << genre << endl;
 
-    if (fileName == "sampleSAVEDINDPS.mp3")
-    {
+    if (fileName == "sampleSAVEDINDPS.mp3") {
 
         const auto sec = collection.UserTag("Sec Tone");
         cout << "Sectone is: " << sec << endl;
@@ -153,9 +150,7 @@ void ParseAllInKnownGood(const std::string& fileName) {
         const auto v2Album = collection.Album();
         cout << v2Album << endl;
         REQUIRE(v2Album == "This is the album title");
-    }
-    else if (fileName == "BustedButReadableTag.mp3")
-    {
+    } else if (fileName == "BustedButReadableTag.mp3") {
         REQUIRE(art == "Twinkle");
         REQUIRE(tit == "Terry");
         REQUIRE(alb == "");
@@ -163,9 +158,7 @@ void ParseAllInKnownGood(const std::string& fileName) {
         REQUIRE(nyear == 1964);
         REQUIRE(yr == "1964");
         REQUIRE(genre == "Blues");
-    }
-    else if (fileName == "sample.mp3")
-    {
+    } else if (fileName == "sample.mp3") {
         REQUIRE(genre == "Bebop");
     }
 }
