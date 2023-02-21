@@ -35,6 +35,8 @@ bool invalidChar(char c)
 {
     if (std::isspace(static_cast<unsigned char>(c)))
         return false;
+    if (c == ':')
+        return false;
     return !std::isalnum(static_cast<unsigned char>(c));
 }
 void stripUnicode(std::string &str)
@@ -102,11 +104,13 @@ void ParseAllInKnownGood(const std::string &fileName)
         //
         const auto unicode = ptr->textEncoding;
         std::string uid = ptr->uid();
+
         if (uid.substr(0, 4) == "APIC")
         {
             rep = "<Image Data>";
         }
 
+        stripUnicode(uid);
         cout << "tag: "
              << "uid: " << uid;
         if (unicode == ID3v2::TextEncodingType::unicode_with_bom)
@@ -129,21 +133,25 @@ void ParseAllInKnownGood(const std::string &fileName)
     const auto yr = tag.v1Year();
     const auto nyear = tag.v1year();
     const auto genre = tag.v1Genre();
-
-cout << art << endl;
-cout << tit << endl;
- cout << alb << endl;
-      cout << yr << endl;
-        cout << comment << endl;
-        cout << nyear << endl;
-        cout << genre << endl;
+    cout << genre << endl;
+    cout << art << endl;
+    cout << tit << endl;
+    cout << alb << endl;
+    cout << yr << endl;
+    cout << comment << endl;
+    cout << nyear << endl;
+    // cout << genre << endl;
 
     if (fileName == "sampleSAVEDINDPS.mp3")
     {
-        
+
+        const auto sec = collection.UserTag("Sec Tone");
+        cout << "Sectone is: " << sec << endl;
+        cout << endl;
         REQUIRE(art == "This Is The Artist Field");
         REQUIRE(tit == "This Is The Title Field");
         REQUIRE(alb == "");
+        REQUIRE(genre.empty());
         REQUIRE(comment == "");
         REQUIRE(yr == "2023");
         REQUIRE(nyear == 2023);
@@ -157,25 +165,21 @@ cout << tit << endl;
         const auto v2Album = collection.Album();
         cout << v2Album << endl;
         REQUIRE(v2Album == "This is the album title");
-   
-    }else if (fileName == "BustedButReadableTag.mp3"){
+    }
+    else if (fileName == "BustedButReadableTag.mp3")
+    {
         REQUIRE(art == "Twinkle");
         REQUIRE(tit == "Terry");
         REQUIRE(alb == "");
         REQUIRE(comment == "");
         REQUIRE(nyear == 1964);
         REQUIRE(yr == "1964");
-        const auto v2Comment = collection.Comment();
-    
-        cout << v2Comment << endl;
-        const auto sec = collection.UserTag("Sec Tone");
-        cout << "Sectone is: " << sec << endl;
-        cout << endl;
-    }else if (fileName == ""){
-
+        REQUIRE(genre == "Blues");
     }
-
-
+    else if (fileName == "sample.mp3")
+    {
+        REQUIRE(genre == "Bebop");
+    }
 }
 
 TEST_CASE("DumpGoodFilesOutput")
