@@ -37,6 +37,8 @@ int main(int argc, char** argv) {
 
     bool extract_images = true;
     (void)extract_images;
+    std::fstream fnotags(
+        destDir / "These-have-no-tags.txt", std::ios::binary | std::ios::out);
 
     for (const fs::directory_entry& dir_entry :
         fs::recursive_directory_iterator(srcDir)) {
@@ -49,8 +51,18 @@ int main(int argc, char** argv) {
                 try {
                     // cout << "Reading: " << p.u8string() << endl;
                     ID3v2::TagCollection tags(p.u8string());
-                    const auto pic = tags.pictureFrame();
-                    const auto& stem = p.stem();
+                    if (tags.hasNoV2Tags()) {
+                        fnotags.write(p.u8string().data(), p.u8string().size());
+                        if (tags.hasv1Tags()) {
+
+                            const std::string v1dump = tags.dumpv1Tags();
+                            fnotags.write(v1dump.data(), v1dump.size());
+                        }
+                        fnotags.write(NL.data(), NL.size());
+                    }
+                    // const auto pic = tags.pictureFrame();
+                    // const auto& stem = p.stem();
+                    /*/
                     if (pic != nullptr) {
                         auto picfn = (destDir / stem);
                         std::string picfp = picfn.u8string();
@@ -64,6 +76,7 @@ int main(int argc, char** argv) {
                         fpic.write(d.data(), d.size());
                         assert(fpic);
                     }
+                    /*/
                 } catch (const std::exception& e) {
                     const std::string& sp(p.u8string());
                     flog.write(sp.data(), sp.size());

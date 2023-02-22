@@ -119,6 +119,7 @@ namespace detail {
 
 enum class verifyTagResult {
     BadBase = -1,
+    NotPresent = 0,
     OK = 1,
     BadVersion = BadBase - 1,
     BadID = BadBase - 2,
@@ -138,6 +139,7 @@ static inline std::string ValidityToString(
         return "Invalid and out-of-range verifyTagResult";
     }
     switch (v) {
+        case verifyTagResult::NotPresent: return "ID3v2Tag not present";
         case verifyTagResult::OK: return "No Verification Error";
         case verifyTagResult::BadBase: return "Unknown Verification Error";
         case verifyTagResult::BadVersion: return "Bad ID3v2(.3) version";
@@ -346,7 +348,9 @@ static inline verifyTagResult verifyTag(TagHeaderEx& h) {
     // we ought to check it first so as not to surprise callers.
     {
         std::string_view sv(h.ID, 3);
-        if (sv != "ID3") return verifyTagResult::BadID;
+        if (sv != "ID3") {
+            return verifyTagResult::NotPresent;
+        }
     }
     if (h.sizeIndicator == 0) return verifyTagResult::BadSizeIndicator;
     if (h.version[0] != 3) return verifyTagResult::BadVersion;
@@ -384,8 +388,14 @@ static inline TagHeaderEx parseHeader(
             if (ret.sizeIndicator > 0)
                 ret.dataSizeInBytes = getTagSize(ret.sizeIndicator);
         } else {
-            throw std::runtime_error(filePath + "v2 Tag is not valid"
-                + ValidityToString(ret.validity, ret));
+            if (ret.validity == verifyTagResult::NotPresent) {
+                ret.dataSizeInBytes = 0;
+
+            } else {
+
+                throw std::runtime_error(filePath + "v2 Tag is not valid"
+                    + ValidityToString(ret.validity, ret));
+            }
         }
     }
 
@@ -546,7 +556,13 @@ struct TagDataReader {
         assert(m_dr.is_open());
         m_info.SetTag(ID3v2::parseHeader(m_dr, filePath));
 
-        if (m_info.Tag().validity != ID3v2::verifyTagResult::OK) {
+        const auto val = m_info.Tag().validity;
+        if (val != ID3v2::verifyTagResult::OK) {
+            if (val == ID3v2::verifyTagResult::NotPresent) {
+                // we may still have id3v1 tags here. In any case 'no tags' is
+                // not an error/
+                return;
+            }
             throw std::runtime_error("File: " + filePath + " has no ID3v2Tags");
         }
 
@@ -692,6 +708,8 @@ struct PictureFrame : AbstractFrame {
             Picture data    <binary data>
         /*/
         // clang-format on
+        const auto& fp = h.filePath();
+
         const auto& s = h.AllData();
         this->textEncoding = static_cast<TextEncodingType>(*s.begin());
         int nNulls = 1; // encoding doesn't apply to mimetype
@@ -711,9 +729,10 @@ struct PictureFrame : AbstractFrame {
                 const auto& found_bad = s.find(bad);
                 if (found_bad == 0) {
                     if (s.size() == bad.size()) {
-                        throw std::runtime_error(
-                            "Only (bad) mime type and description, no room for "
-                            "data");
+                        throw std::runtime_error(fp
+                            + ": Only (bad) mime type and description, no room "
+                              "for "
+                              "data");
                     }
                     this->mimeType = "image/jpeg";
                     this->description = "Front Cover";
@@ -726,7 +745,7 @@ struct PictureFrame : AbstractFrame {
                 ++ctr;
             }
 
-            throw std::runtime_error(h.filePath()
+            throw std::runtime_error(fp
                 + ": PictureFrame: cannot find null separator "
                   "between mime-type and picture-type.");
         }
@@ -751,16 +770,12 @@ struct PictureFrame : AbstractFrame {
                                      "between description and data");
         }
 
-        const int len_desc = (int)(desc_end - desc_start);
+        const int len_desc = (int)(desc_end - desc_start); // can be 0
         assert(len_desc >= 0);
         this->description
             = s.substr(desc_start, len_desc); // can be zero length
         pos += description.size() + nNulls; // there is a null after description
         this->payLoad = s.substr(pos);
-
-        // std::fstream f("ffs.png", std::ios::out | std::ios::binary);
-        // f.write(this->payLoad.data(), this->payLoad.size());
-        // f.close();
     }
     virtual ~PictureFrame() = default;
     int pictureType = 0;
@@ -770,8 +785,8 @@ struct PictureFrame : AbstractFrame {
 
 static inline std::string ImageMimeExtension(const std::string& mimeType) {
 
-    if (mimeType.find("jpg") != std::string::npos) return ".jpg";
-    if (mimeType.find("jpeg") != std::string::npos) return ".jpg";
+    if (mimeType.find("jpg") != std::string::npos) return ".jpeg";
+    if (mimeType.find("jpeg") != std::string::npos) return ".jpeg";
     if (mimeType.find("png") != std::string::npos) return ".png";
     assert(0);
     return std::string();
@@ -857,6 +872,27 @@ struct TagCollection {
         info = rdr.m_info;
     }
     ~TagCollection() {}
+
+    bool hasNoV2Tags() const noexcept {
+        return info.Tag().validity == verifyTagResult::NotPresent;
+    }
+
+    bool hasv1Tags() const noexcept { return info.Tag().hasv1Tag(); }
+
+    std::string dumpv1Tags() const {
+        using std::endl;
+        if (!hasv1Tags()) return std::string();
+        std::stringstream ss;
+        ss << "Version 1 Tags:" << endl;
+        const auto& t = info.Tag();
+        ss << "\tArtist:   " << t.v1Artist() << endl;
+        ss << "\tTitle:    " << t.v1Title() << endl;
+        ss << "\tAlbum:    " << t.v1Album() << endl;
+        ss << "\tComments: " << t.v1Comment() << endl;
+        ss << "\tYear:     " << t.v1Year() << endl;
+        ss << "\tGenre:    " << t.v1Genre() << endl << endl;
+        return std::string(ss.str());
+    }
 
     const ContainerType& Tags() const noexcept { return m_tags; }
     ID3v2::ID3FileInfo info = {};
