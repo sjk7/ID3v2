@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
     using std::cout;
     using std::endl;
 
-    fs::path srcDir = "H:\\audio-root-2023";
+    fs::path srcDir = "H:\\audio-root-2018";
     fs::path destDir = "C:\\Users\\Cool\\Desktop\\BadID3Files";
     if (argc >= 2) {
         srcDir = argv[1];
@@ -39,6 +39,8 @@ int main(int argc, char** argv) {
     (void)extract_images;
     std::fstream fnotags(
         destDir / "These-have-no-tags.txt", std::ios::binary | std::ios::out);
+    std::fstream fv4(
+        destDir / "These-have-v2.4Tags.txt", std::ios::binary | std::ios::out);
 
     for (const fs::directory_entry& dir_entry :
         fs::recursive_directory_iterator(srcDir)) {
@@ -59,22 +61,34 @@ int main(int argc, char** argv) {
                             fnotags.write(v1dump.data(), v1dump.size());
                         }
                         fnotags.write(NL.data(), NL.size());
+                    } else {
+                        if (tags.info.Tag().Revision() == 4) {
+                            fv4.write(p.u8string().data(), p.u8string().size());
+                            fv4.write(NL.data(), NL.size());
+                            const std::string dmp = tags.dumpv2Tags();
+                            fv4.write(dmp.data(), dmp.size());
+                        }
                     }
-                    // const auto pic = tags.pictureFrame();
-                    // const auto& stem = p.stem();
                     /*/
-                    if (pic != nullptr) {
-                        auto picfn = (destDir / stem);
-                        std::string picfp = picfn.u8string();
-                        std::string extn
-                            = ID3v2::ImageMimeExtension(pic->mimeType);
-                        picfp += extn;
-                        std::fstream fpic(
-                            picfp, std::ios::out | std::ios::binary);
-                        assert(fpic);
-                        const auto& d = pic->payLoad;
-                        fpic.write(d.data(), d.size());
-                        assert(fpic);
+                    const auto picF = tags.pictureFrame();
+                    if (picF != nullptr) {
+                        if (picF->IsMalformed()) {
+                            const auto& stem = p.stem();
+
+                            if (picF != nullptr) {
+                                auto picfn = (destDir / stem);
+                                std::string picfp = picfn.u8string();
+                                std::string extn
+                                    = ID3v2::ImageMimeExtension(picF->mimeType);
+                                picfp += extn;
+                                std::fstream fpic(
+                                    picfp, std::ios::out | std::ios::binary);
+                                assert(fpic);
+                                const auto& d = picF->payLoad;
+                                fpic.write(d.data(), d.size());
+                                assert(fpic);
+                            }
+                        }
                     }
                     /*/
                 } catch (const std::exception& e) {

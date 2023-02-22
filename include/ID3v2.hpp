@@ -130,10 +130,9 @@ enum class verifyTagResult {
 static inline std::string ValidityToString(
     const verifyTagResult& v, const TagHeader& h) {
 
-    unsigned int a = static_cast<unsigned int>(v);
-    unsigned int highest = static_cast<unsigned int>(verifyTagResult::OK);
-    unsigned int lowest
-        = static_cast<unsigned int>(verifyTagResult::BadReservedFlags);
+    int a = static_cast<unsigned int>(v);
+    int highest = static_cast<unsigned int>(verifyTagResult::OK);
+    int lowest = static_cast<unsigned int>(verifyTagResult::BadReservedFlags);
 
     if (a > highest || a < lowest) {
         return "Invalid and out-of-range verifyTagResult";
@@ -179,6 +178,8 @@ struct TagHeaderEx : TagHeader {
         std::string_view s{v1Tag.tag, 3};
         return s == "TAG";
     }
+
+    unsigned int Revision() const noexcept { return TagHeader::version[0]; }
 
     std::string v1Artist() const noexcept { return fromFixed(v1Tag.artist); }
     std::string v1Title() const noexcept { return fromFixed(v1Tag.title); }
@@ -286,13 +287,20 @@ struct FrameHeaderEx : FrameHeader {
     }
 
     auto SizeInBytes(bool includingHeader = false) {
+        bool useSynchSafe = this->m_info.Tag().version[0] == 4;
         if (sizeInBytes == 0) {
-            sizeInBytes = GetFrameSize((FrameHeader) * this);
+            sizeInBytes = GetFrameSize((FrameHeader) * this, useSynchSafe);
         }
         assert(m_info.TotalFileSize());
         if (sizeInBytes > m_info.TotalFileSize()) {
-            throw std::runtime_error(
-                m_info.FilePath() + "Frame size is more than the entire file!");
+            bool ss = !useSynchSafe;
+            sizeInBytes = GetFrameSize((FrameHeader) * this, ss);
+
+            if (sizeInBytes > m_info.TotalFileSize()) {
+
+                throw std::runtime_error(m_info.FilePath()
+                    + "Frame size is more than the entire file!");
+            }
         }
         return includingHeader ? sizeInBytes + sizeof(FrameHeader)
                                : sizeInBytes;
@@ -353,7 +361,11 @@ static inline verifyTagResult verifyTag(TagHeaderEx& h) {
         }
     }
     if (h.sizeIndicator == 0) return verifyTagResult::BadSizeIndicator;
-    if (h.version[0] != 3) return verifyTagResult::BadVersion;
+    if (h.version[0] == 3 || h.version[0] == 4) {
+
+    } else {
+        return verifyTagResult::BadVersion;
+    }
 
     std::bitset<8> f(h.flags);
     if (f.test(7)) h.hasUnsynchronisation = true;
@@ -393,7 +405,7 @@ static inline TagHeaderEx parseHeader(
 
             } else {
 
-                throw std::runtime_error(filePath + "v2 Tag is not valid"
+                throw std::runtime_error(filePath + ": v2 Tag is not valid: "
                     + ValidityToString(ret.validity, ret));
             }
         }
@@ -720,12 +732,16 @@ struct PictureFrame : AbstractFrame {
             // some broken files: have 'image/jpegFront Cover' (no nulls), so
             // check for this
             std::string three(1, 3);
+            std::string one(1, 1);
             static const std::vector<std::string> badOnes
                 = {{"image/jpegFront Cover"}, {"image/jpgFront Cover"},
-                    {"image/jpeg" + three}, {"image/jpg" + three}};
+                    {"image/jpeg" + three}, {"image/jpg" + three},
+                    {one + "image/jpeg"}, {one + "image/jpg"}, {"image/jpeg"},
+                    {"image/jpg"}, {"image/JPG"}, {"image/JPEG"}};
 
             int ctr = 0;
             for (const auto& bad : badOnes) {
+
                 const auto& found_bad = s.find(bad);
                 if (found_bad == 0) {
                     if (s.size() == bad.size()) {
@@ -872,6 +888,16 @@ struct TagCollection {
         info = rdr.m_info;
     }
     ~TagCollection() {}
+
+    std::string dumpv2Tags() const {
+        using std::endl;
+        std::stringstream ss;
+        for (const auto& p : m_tags) {
+            ss << p.second->uid() << "\t" << p.second->PayLoad() << endl;
+        }
+        ss << endl;
+        return std::string(ss.str());
+    }
 
     bool hasNoV2Tags() const noexcept {
         return info.Tag().validity == verifyTagResult::NotPresent;

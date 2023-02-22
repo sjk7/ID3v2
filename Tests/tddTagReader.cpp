@@ -28,18 +28,10 @@ TEST_CASE("ParseKnownBad") {
          << filePath << endl;
 }
 
-bool invalidChar(char c) {
-    if (std::isspace(static_cast<unsigned char>(c))) return false;
-    if (c == ':') return false;
-    return !std::isalnum(static_cast<unsigned char>(c));
-}
-void stripUnicode(std::string& str) {
-    str.erase(remove_if(str.begin(), str.end(), invalidChar), str.end());
-}
-
 void ParseKnownGood(const std::string& fileName) {
     using std::cout;
     using std::endl;
+    using utils::strings::stripUnicode;
 
     const auto filePath = utils::find_file_up(fileName, "ID3v2");
     REQUIRE_MESSAGE(!filePath.empty(), fileName + " needed for this test");
@@ -75,6 +67,7 @@ void ParseAllInKnownGood(const std::string& fileName) {
     using std::cout;
     using std::endl;
     using std::wcout;
+    using utils::strings::stripUnicode;
     const auto filePath = utils::find_file_up(fileName, "ID3v2");
     REQUIRE_MESSAGE(!filePath.empty(), fileName + " needed for this test");
     ID3v2::TagCollection collection(filePath.u8string());

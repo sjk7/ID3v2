@@ -219,6 +219,15 @@ namespace strings {
         return std::string{ss.str()};
     }
 
+    static inline bool invalidChar(char c) {
+        if (std::isspace(static_cast<unsigned char>(c))) return false;
+        if (c == ':') return false;
+        return !std::isalnum(static_cast<unsigned char>(c));
+    }
+    static inline void stripUnicode(std::string& str) {
+        str.erase(remove_if(str.begin(), str.end(), invalidChar), str.end());
+    }
+
     // way slower than cat(), but accepts any streamable type in the arguments
     // If you need faster, use concat_into and provide your own stringstream
     // object.
