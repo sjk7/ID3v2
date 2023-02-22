@@ -943,6 +943,7 @@ struct TagCollection {
                 return true;
             }
         }
+        return false;
     }
 
     const PictureFrame* pictureFrame() const {
