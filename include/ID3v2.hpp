@@ -179,6 +179,8 @@ struct TagHeaderEx : TagHeader {
         return s == "TAG";
     }
 
+    bool hasv2Tag() const { return this->validity == verifyTagResult::OK; }
+
     unsigned int Revision() const noexcept { return TagHeader::version[0]; }
 
     std::string v1Artist() const noexcept { return fromFixed(v1Tag.artist); }

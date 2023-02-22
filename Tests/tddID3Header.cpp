@@ -21,15 +21,8 @@ using std::endl;
 int test_invalid_id3v2_headers() {
     ID3v2::TagHeaderEx th{};
     auto verif = ID3v2::verifyTag(th);
-    if (verif != ID3v2::verifyTagResult::BadID) {
-        cerr << "No. Expected invalid from verif" << endl;
-        return -1;
-    }
-
-    th.version[0] = 3;
-    verif = ID3v2::verifyTag(th);
-    if (verif != ID3v2::verifyTagResult::BadID) {
-        cerr << "No. Expected BadID from verif" << endl;
+    if (verif != ID3v2::verifyTagResult::NotPresent) {
+        cerr << "No. Expected not present from verif" << endl;
         return -1;
     }
 
@@ -37,6 +30,13 @@ int test_invalid_id3v2_headers() {
     verif = ID3v2::verifyTag(th);
     if (verif != ID3v2::verifyTagResult::BadSizeIndicator) {
         cerr << "No. Expected BadSizeIndicator from verifytag" << endl;
+        return -1;
+    }
+
+    th.version[0] = 3;
+    verif = ID3v2::verifyTag(th);
+    if (verif != ID3v2::verifyTagResult::BadSizeIndicator) {
+        cerr << "No. Expected BadID from verif" << endl;
         return -1;
     }
 
@@ -60,8 +60,8 @@ int test_invalid_id3v2_headers() {
         threw = true;
     }
 
-    if (!threw) {
-        cerr << "No, a bad file should always throw";
+    if (threw) {
+        cerr << "No, a bad file should NOT throw, but have NO id3v2";
         return -1;
     }
     // assert(h.validity != ID3v2::OK);

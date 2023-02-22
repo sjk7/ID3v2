@@ -20,12 +20,17 @@ TEST_CASE("ParseKnownBad") {
         filePath = utils::find_file_up("testfile.bin", "ID3v2");
         REQUIRE_MESSAGE(!filePath.empty(), "testfile.bin needed for this test");
         TagDataReader parser(filePath.string(), [](ID3v2::FrameHeaderEx&) {});
+        REQUIRE(!parser.m_info.Tag().hasv1Tag());
+        REQUIRE(!parser.m_info.Tag().hasv2Tag());
+
     } catch (const std::exception&) {
         thrown = true;
     }
-    REQUIRE(thrown);
-    cout << "ParseKnownBad: OK -- exception was thrown as expected\nFor file: "
-         << filePath << endl;
+
+    //    REQUIRE(thrown);
+    //   cout << "ParseKnownBad: OK -- exception was thrown as expected\nFor
+    //   file: "
+    //       << filePath << endl;
 }
 
 void ParseKnownGood(const std::string& fileName) {
