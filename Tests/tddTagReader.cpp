@@ -12,7 +12,7 @@ TEST_CASE("ParseKnownBad") {
 
     using std::cout;
     using std::endl;
-    bool thrown = false;
+    // bool thrown = false;
     fs::path filePath;
 
     try {
@@ -24,7 +24,7 @@ TEST_CASE("ParseKnownBad") {
         REQUIRE(!parser.m_info.Tag().hasv2Tag());
 
     } catch (const std::exception&) {
-        thrown = true;
+        // thrown = true;
     }
 
     //    REQUIRE(thrown);

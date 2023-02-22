@@ -937,7 +937,7 @@ struct TagCollection {
         return tagFromID("TXXX:" + id);
     }
     const std::string& Comment() const noexcept { return tagFromID("COMM"); }
-    const bool hasPictureFrame() const noexcept {
+    bool hasPictureFrame() const noexcept {
         for (const auto& ptr : m_tags) {
             if (ptr.first.find("APIC") != std::string::npos) {
                 return true;
