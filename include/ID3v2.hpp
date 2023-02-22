@@ -275,6 +275,7 @@ struct FrameHeaderEx : FrameHeader {
     std::string allData;
 
     public:
+    const auto& filePath() const noexcept { return m_info.FilePath(); }
     FrameHeaderEx(const ID3FileInfo& info, const std::streamoff& filePos)
         : m_info(info), filePosition(filePos) {}
 
@@ -445,10 +446,23 @@ struct ID3v2Skipper {
     my::FileDataReader m_dr;
 };
 
+// make your own if you do not like mine ...
+struct ErrorLogger {
+    virtual void operator()(const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+    }
+    virtual void operator()(const std::string& e) {
+        std::cerr << e << std::endl;
+    }
+};
+
+static inline ErrorLogger errorLogger;
+
 // populates the data in all the Tags; does not parse further.
 // Calls CB() with each frame.
-template <typename CB>
-static inline void FillTags(ID3FileInfo& info, my::IDataReader& dr, CB&& cb) {
+template <typename errHandler = ErrorLogger, typename CB>
+static inline void FillTags(ID3FileInfo& info, my::IDataReader& dr, CB&& cb,
+    errHandler errh = errorLogger) {
 
     using std::cerr;
     using std::endl;
@@ -502,11 +516,13 @@ static inline void FillTags(ID3FileInfo& info, my::IDataReader& dr, CB&& cb) {
                 } else {
                     const auto junkPos = padding.find_first_not_of('\0');
                     const auto wtf = padding.substr(junkPos);
-                    std::cout << wtf << std::endl;
-                    std::cout << junkPos << std::endl;
-                    MYTRACE(MyTraceFlags::defaults, info.FilePath(),
-                        "Has appparent junk after the tags, and before the "
-                        "start of audio. info.paddingJunk contains the junk");
+                    const auto s = utils::strings::concat(info.FilePath(),
+                        " has apparent junk after the tags, "
+                        "and before the apparent start of audio. "
+                        "info.PaddingJunk contains ",
+                        remain_tag, " bytes of junk");
+                    std::runtime_error re(s);
+                    errh(re);
                     return;
                 }
             }
@@ -685,8 +701,10 @@ struct PictureFrame : AbstractFrame {
         if (found_null == std::string::npos) {
             // some broken files: have 'image/jpegFront Cover' (no nulls), so
             // check for this
+            std::string three(1, 3);
             static const std::vector<std::string> badOnes
-                = {{"image/jpegFront Cover"}, {"image/jpgFront Cover"}};
+                = {{"image/jpegFront Cover"}, {"image/jpgFront Cover"},
+                    {"image/jpeg" + three}, {"image/jpg" + three}};
 
             int ctr = 0;
             for (const auto& bad : badOnes) {
@@ -697,21 +715,20 @@ struct PictureFrame : AbstractFrame {
                             "Only (bad) mime type and description, no room for "
                             "data");
                     }
-                    this->mimeType = "bad";
+                    this->mimeType = "image/jpeg";
                     this->description = "Front Cover";
-                    this->m_suid = "APIC:" + std::to_string(0);
+                    this->pictureType = 3; // frontcover
+                    this->m_suid = "APIC:" + std::to_string(pictureType);
                     this->payLoad = s.substr(bad.size());
-                    if (ctr != 0) {
-                        std::cout << "ok" << std::endl;
-                    }
                     this->malFormed = true;
                     return;
                 }
                 ++ctr;
             }
 
-            throw std::runtime_error("PictureFrame: cannot find null separator "
-                                     "between mime-type and picture-type.");
+            throw std::runtime_error(h.filePath()
+                + ": PictureFrame: cannot find null separator "
+                  "between mime-type and picture-type.");
         }
         auto pos = found_null;
         mimeType = s.substr(1, pos);
@@ -751,7 +768,17 @@ struct PictureFrame : AbstractFrame {
     std::string mimeType;
 };
 
+static inline std::string ImageMimeExtension(const std::string& mimeType) {
+
+    if (mimeType.find("jpg") != std::string::npos) return ".jpg";
+    if (mimeType.find("jpeg") != std::string::npos) return ".jpg";
+    if (mimeType.find("png") != std::string::npos) return ".png";
+    assert(0);
+    return std::string();
+}
+
 struct TagFactory {
+
     static inline ptrBase MakeTextFrame(const FrameHeaderEx& h) {
         ptrBase ret = std::make_unique<TextFrame>(h);
         return ret;
@@ -771,6 +798,42 @@ struct TagFactory {
         ptrBase ret = std::make_unique<PictureFrame>(h);
         return ret;
     }
+
+    template <typename T>
+    static inline ptrBase CreateID3V2Frame(
+        const FrameHeaderEx& h, T errorLogger) {
+        try {
+
+            if (h.frameID[0] == 'T') {
+                // Text or Comments Frame
+                if (h.IDString() == "TXXX") {
+                    auto ptr = TagFactory::MakeUserTextFrame(h);
+                    return ptr;
+
+                } else {
+                    auto ptr = TagFactory::MakeTextFrame(h);
+                    return ptr;
+                }
+            } else {
+
+                if (h.IDString() == "COMM") {
+                    auto ptr = TagFactory::MakeCommentsFrame(h);
+                    return ptr;
+
+                } else {
+                    if (h.IDString() == "APIC") {
+                        auto ptr = TagFactory::MakePictureFrame(h);
+                        return ptr;
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            // just skip this frame if it is somehow bad
+            errorLogger(e);
+            return nullptr;
+        }
+        return nullptr;
+    }
 };
 
 struct TagCollection {
@@ -783,29 +846,12 @@ struct TagCollection {
     TagCollection() = default;
 
     public:
-    TagCollection(const std::string& filepath) : TagCollection() {
+    TagCollection(const std::string& filepath, ErrorLogger& e = errorLogger)
+        : TagCollection() {
         TagDataReader rdr(filepath, [&](const FrameHeaderEx& h) {
-            if (h.frameID[0] == 'T') {
-                // Text or Comments Frame
-                if (h.IDString() == "TXXX") {
-                    auto ptr = TagFactory::MakeUserTextFrame(h);
-                    conditionalInsert(ptr);
-                } else {
-                    auto ptr = TagFactory::MakeTextFrame(h);
-                    conditionalInsert(ptr);
-                }
-            } else {
-
-                if (h.IDString() == "COMM") {
-                    auto ptr = TagFactory::MakeCommentsFrame(h);
-                    conditionalInsert(ptr);
-
-                } else {
-                    if (h.IDString() == "APIC") {
-                        auto ptr = TagFactory::MakePictureFrame(h);
-                        conditionalInsert(ptr);
-                    }
-                }
+            auto ptrBase = TagFactory::CreateID3V2Frame(h, e);
+            if (ptrBase) {
+                conditionalInsert(ptrBase);
             }
         });
         info = rdr.m_info;
@@ -827,6 +873,30 @@ struct TagCollection {
         return tagFromID("TXXX:" + id);
     }
     const std::string& Comment() const noexcept { return tagFromID("COMM"); }
+    const bool hasPictureFrame() const noexcept {
+        for (const auto& ptr : m_tags) {
+            if (ptr.first.find("APIC") != std::string::npos) {
+                return true;
+            }
+        }
+    }
+
+    const PictureFrame* pictureFrame() const {
+
+        const auto& found = m_tags.find("APIC");
+        if (found != m_tags.end()) {
+            return (PictureFrame*)found->second.get();
+        }
+        if (found == m_tags.end()) {
+            for (const auto& ptr : m_tags) {
+                if (ptr.first.find("APIC") != std::string::npos) {
+                    PictureFrame* p = (PictureFrame*)ptr.second.get();
+                    return p;
+                }
+            }
+        }
+        return nullptr;
+    }
 
     private:
     static inline std::string m_empty;

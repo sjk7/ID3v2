@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
     using std::cout;
     using std::endl;
 
-    fs::path srcDir = "H:\\audio-root-2018";
+    fs::path srcDir = "H:\\audio-root-2023";
     fs::path destDir = "C:\\Users\\Cool\\Desktop\\BadID3Files";
     if (argc >= 2) {
         srcDir = argv[1];
@@ -35,6 +35,9 @@ int main(int argc, char** argv) {
     const std::string NL = "\n";
     const std::string TAB = "\t";
 
+    bool extract_images = true;
+    (void)extract_images;
+
     for (const fs::directory_entry& dir_entry :
         fs::recursive_directory_iterator(srcDir)) {
         bool threw = false;
@@ -44,8 +47,23 @@ int main(int argc, char** argv) {
 
             if (ext == ".mp3" || ext == ".MP3") {
                 try {
-                    cout << "Reading: " << p.u8string() << endl;
+                    // cout << "Reading: " << p.u8string() << endl;
                     ID3v2::TagCollection tags(p.u8string());
+                    const auto pic = tags.pictureFrame();
+                    const auto& stem = p.stem();
+                    if (pic != nullptr) {
+                        auto picfn = (destDir / stem);
+                        std::string picfp = picfn.u8string();
+                        std::string extn
+                            = ID3v2::ImageMimeExtension(pic->mimeType);
+                        picfp += extn;
+                        std::fstream fpic(
+                            picfp, std::ios::out | std::ios::binary);
+                        assert(fpic);
+                        const auto& d = pic->payLoad;
+                        fpic.write(d.data(), d.size());
+                        assert(fpic);
+                    }
                 } catch (const std::exception& e) {
                     const std::string& sp(p.u8string());
                     flog.write(sp.data(), sp.size());
@@ -53,13 +71,6 @@ int main(int argc, char** argv) {
                     flog.write(e.what(), strlen(e.what()));
                     flog.write(NL.data(), NL.size());
                     flog.flush();
-                    if (sp
-                        == "H:\\audio-root-2023\\80S\\2\\Opener\\PRINCE - I "
-                           "WANNA BE YOUR LOVER.mp3") {
-                    } else {
-
-                        threw = true;
-                    }
                 }
                 threw = false;
             }
